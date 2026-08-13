@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debt-register:
+    # Runs first and on its own. If the register and the source disagree about what debt exists,
+    # the rest of the pipeline's results are about a codebase we cannot describe accurately.
+    name: Technical-debt register
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Register and source must agree
+        run: python scripts/check_satd.py --list
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check app tests
+
+      - name: Format check
+        run: ruff format --check app tests
+
+      - name: Tests
+        # Determinism is pinned in the environment as well as in code: a threaded reduction
+        # order is enough to move a probability in the seventh decimal, which is enough to flip
+        # an argmax on an ambiguous window, which is enough to make the equivalence test flaky
+        # for reasons that have nothing to do with the export.
+        env:
+          OMP_NUM_THREADS: 1
+          MKL_NUM_THREADS: 1
+        run: pytest --cov=app --cov-report=term-missing
+
+  frontend:
+    name: Front-end tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip until the front end exists
+        id: guard
+        run: |
+          if [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT";
+          else echo "present=false" >> "$GITHUB_OUTPUT"; echo "No package.json yet."; fi
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.present == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - if: steps.guard.outputs.present == 'true'
+        run: npm ci
+      - if: steps.guard.outputs.present == 'true'
+        run: npm run lint
+      - if: steps.guard.outputs.present == 'true'
+        run: npm run test -- --run
+      - if: steps.guard.outputs.present == 'true'
+        run: npm run build

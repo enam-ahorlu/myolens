@@ -1,0 +1,6 @@
+Deployment artefacts land here at build time: svm_freq72.onnx, resnet_se_cd.onnx,
+resnet_se_cd.onnx.data and reference_outputs.npz.
+
+resnet_se_cd.onnx.data holds the ResNet's external weights and MUST be deployed alongside
+the .onnx file. Shipping the graph without it produces a container that starts cleanly and
+fails on first inference.

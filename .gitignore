@@ -1,0 +1,35 @@
+# Secrets. The service-account key never enters this repository, under any name.
+*.json.key
+service-account*.json
+gcp-*.json
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+*.local
+
+# Model artefacts are deployed from the release pipeline, not tracked here.
+# resnet_se_cd.onnx.data in particular is 2.2 MB of external weights.
+backend/artifacts/*.onnx
+backend/artifacts/*.onnx.data
+backend/artifacts/*.npz
+
+# OS
+.DS_Store
+Thumbs.db
