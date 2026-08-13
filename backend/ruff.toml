@@ -1,0 +1,28 @@
+# Lint and format configuration.
+#
+# Line length 100 rather than the default 88: this codebase carries a lot of explanatory comment
+# prose, and 88 columns fragments sentences across lines in a way that makes the reasoning harder
+# to follow than the code. 100 is still narrow enough for a side-by-side diff.
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import sorting
+    "B",         # bugbear
+    "UP",        # pyupgrade
+    "SIM",       # simplify
+    "RUF",       # ruff-specific
+]
+ignore = [
+    "B008",      # FastAPI's Depends() in defaults is the framework's idiom, not a mutable default
+]
+
+[lint.per-file-ignores]
+# Tests assert on private behaviour and use long, descriptive names deliberately.
+"tests/*" = ["E501"]
+
+[format]
+quote-style = "double"

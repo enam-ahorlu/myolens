@@ -12,31 +12,31 @@ apology.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Stable codes. The front end switches on these; never renumber one."""
 
-    UNAUTHENTICATED = "unauthenticated"            # 401
-    FORBIDDEN = "forbidden"                        # 403
-    NOT_FOUND = "not_found"                        # 404
-    CONFLICT = "conflict"                          # 409
-    MONTAGE_REJECTED = "montage_rejected"          # 409
-    PRECONDITION_FAILED = "precondition_failed"    # 412
-    NOT_CALIBRATED = "not_calibrated"              # 412
+    UNAUTHENTICATED = "unauthenticated"  # 401
+    FORBIDDEN = "forbidden"  # 403
+    NOT_FOUND = "not_found"  # 404
+    CONFLICT = "conflict"  # 409
+    MONTAGE_REJECTED = "montage_rejected"  # 409
+    PRECONDITION_FAILED = "precondition_failed"  # 412
+    NOT_CALIBRATED = "not_calibrated"  # 412
     SEGMENTATION_NOT_APPROVED = "segmentation_not_approved"  # 412
-    PAYLOAD_TOO_LARGE = "payload_too_large"        # 413
-    VALIDATION_FAILED = "validation_failed"        # 422
-    OUT_OF_DISTRIBUTION = "out_of_distribution"    # 422
-    LOCKED = "locked"                              # 423
-    RATE_LIMITED = "rate_limited"                  # 429
-    INTERNAL = "internal"                          # 500
-    MODEL_UNAVAILABLE = "model_unavailable"        # 503
+    PAYLOAD_TOO_LARGE = "payload_too_large"  # 413
+    VALIDATION_FAILED = "validation_failed"  # 422
+    OUT_OF_DISTRIBUTION = "out_of_distribution"  # 422
+    LOCKED = "locked"  # 423
+    RATE_LIMITED = "rate_limited"  # 429
+    INTERNAL = "internal"  # 500
+    MODEL_UNAVAILABLE = "model_unavailable"  # 503
 
 
 class ErrorEnvelope(BaseModel):

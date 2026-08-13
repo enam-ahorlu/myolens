@@ -60,27 +60,43 @@ jobs:
   frontend:
     name: Front-end tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    # No job-level working-directory. `defaults.run.working-directory` is applied to the *first*
+    # run step, and git does not track empty directories -- so before the front end exists there
+    # is no frontend/ on the runner and the guard itself fails with "no such directory". The
+    # guard has to run from the repository root to be able to report that the directory is
+    # missing. Caught on the first CI run of the project.
     steps:
       - uses: actions/checkout@v4
-      - name: Skip until the front end exists
+
+      - name: Does the front end exist yet?
         id: guard
         run: |
-          if [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT";
-          else echo "present=false" >> "$GITHUB_OUTPUT"; echo "No package.json yet."; fi
+          if [ -f frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No frontend/package.json yet - skipping the front-end job."
+          fi
+
       - uses: actions/setup-node@v4
         if: steps.guard.outputs.present == 'true'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
       - if: steps.guard.outputs.present == 'true'
+        working-directory: frontend
         run: npm ci
+
       - if: steps.guard.outputs.present == 'true'
+        working-directory: frontend
         run: npm run lint
+
       - if: steps.guard.outputs.present == 'true'
+        working-directory: frontend
         run: npm run test -- --run
+
       - if: steps.guard.outputs.present == 'true'
+        working-directory: frontend
         run: npm run build

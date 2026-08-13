@@ -31,8 +31,8 @@ class Collections:
     AUDIT: str = "audit"
 
     CALIBRATIONS: str = "calibrations"  # subcollection of a participant
-    BOUTS: str = "bouts"                # subcollection of a session
-    METRICS: str = "metrics"            # single document under a session
+    BOUTS: str = "bouts"  # subcollection of a session
+    METRICS: str = "metrics"  # single document under a session
 
 
 COLLECTIONS = Collections()

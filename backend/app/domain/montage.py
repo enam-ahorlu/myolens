@@ -17,7 +17,7 @@ contract decorative.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 #: The nine channels, in the order the feature extractor expects them.
 MONTAGE: tuple[str, ...] = (
@@ -39,7 +39,7 @@ N_CHANNELS = len(MONTAGE)
 MONTAGE_CONTRACT_VERSION = "1.0.0"
 
 
-class MuscleGroup(str, Enum):
+class MuscleGroup(StrEnum):
     """Functional groupings used by the co-contraction indices."""
 
     HIP_ABDUCTOR = "hip_abductor"
@@ -59,7 +59,7 @@ GROUPS: dict[MuscleGroup, tuple[int, ...]] = {
 }
 
 
-class Side(str, Enum):
+class Side(StrEnum):
     """Which leg was recorded. Declared per session, never inferred."""
 
     LEFT = "left"

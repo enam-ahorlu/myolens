@@ -9,7 +9,7 @@ is not a requirement at all.
 from __future__ import annotations
 
 import os
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
 
 from pydantic import Field
@@ -23,11 +23,11 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 
-class PredictorMode(str, Enum):
+class PredictorMode(StrEnum):
     """Which serving configuration to use. The de-scope lever."""
 
-    ENSEMBLE = "ensemble"    # SVM + ResNet-SE+CD soft vote. Measured 0.858 macro-F1 LOSO.
-    SVM_ONLY = "svm_only"    # SVM alone. Measured 0.777. The fallback, not the default.
+    ENSEMBLE = "ensemble"  # SVM + ResNet-SE+CD soft vote. Measured 0.858 macro-F1 LOSO.
+    SVM_ONLY = "svm_only"  # SVM alone. Measured 0.777. The fallback, not the default.
 
 
 class Settings(BaseSettings):
