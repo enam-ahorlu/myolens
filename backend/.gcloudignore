@@ -1,0 +1,27 @@
+# What Cloud Build is allowed to see.
+#
+# `gcloud run deploy --source backend` looks for a .git in the *source* directory to derive an
+# ignore list. backend/ is not the repository root, so no .git is found and gcloud would upload
+# the directory verbatim -- test caches, __pycache__, the lot. That is slower, and it puts files
+# in the build context that have no business being in a serving image.
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Tests and their fixtures run in CI, not in the image.
+tests/
+pytest.ini
+ruff.toml
+requirements-dev.txt
+
+# Never, under any circumstance.
+.env
+.env.*
+!.env.example
+*.json.key
+service-account*.json
+gcp-*.json

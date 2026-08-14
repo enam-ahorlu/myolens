@@ -44,6 +44,15 @@ service reports the wrong class order, the wrong channel count or the wrong samp
 is what a stale or mis-built image looks like from outside. Deploying and working are different
 claims, so they are checked separately.
 
+**What the first deploy taught, recorded rather than tidied away.** The first run of this job
+failed with every test job green. The cause was `--require-hashes=false` in the Dockerfile —
+`--require-hashes` is a boolean flag, so pip printed its usage banner and exited non-zero. The
+image never built. Two changes followed. The backend job now runs `docker build`, because nothing
+in a Python test suite executes a Dockerfile and so no amount of test coverage could have caught
+it; that also moves the check onto pull requests, which never reach this job. And the deploy job
+now dumps the Cloud Build log on failure, because `deploy-cloudrun` reports only "Build failed;
+check build logs for details" — a message that names the problem's location and nothing else.
+
 **Bad.** A long-lived service-account key exists. It is a GitHub secret, it is not in the
 repository, `.gitignore` refuses the filename patterns it would arrive under, and it was piped
 into the secret from disk rather than pasted. That is mitigation, not elimination.

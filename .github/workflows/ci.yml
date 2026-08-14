@@ -72,6 +72,15 @@ jobs:
           MKL_NUM_THREADS: 1
         run: pytest --cov=app --cov-report=term-missing
 
+      - name: The serving image must build
+        # Added after the first deploy failed on a malformed pip flag in the Dockerfile. Every
+        # test passed; the image simply never built, and the failure surfaced in Cloud Build
+        # where the pipeline could not see it. Nothing in a Python test suite executes the
+        # Dockerfile, so the Dockerfile has to be executed on purpose. Roughly two minutes,
+        # and it moves an entire class of failure from deploy time to test time -- where it is
+        # also caught on pull requests, which never reach the deploy job at all.
+        run: docker build -t myolens-api:ci .
+
   frontend:
     name: Front-end tests
     runs-on: ubuntu-latest
@@ -167,6 +176,22 @@ jobs:
             MYOLENS_PREDICTOR=ensemble
             OMP_NUM_THREADS=1
             MKL_NUM_THREADS=1
+
+      - name: Why did the build fail?
+        # A failed `deploy-cloudrun` reports only "Build failed; check build logs for details",
+        # and the build log lives in Cloud Build, not in this run. Without this step the next
+        # person debugging a broken image is reading a sentence that tells them nothing. Runs
+        # only on failure, so it costs nothing when things work.
+        if: failure() && steps.deploy.outcome == 'failure'
+        run: |
+          BUILD=$(gcloud builds list \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --limit=1 --format='value(id)')
+          echo "Cloud Build $BUILD - last 150 lines:"
+          gcloud builds log "$BUILD" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --region="${{ secrets.GCP_REGION }}" | tail -150
 
       - name: Prove the revision actually serves
         # A green deploy step means Cloud Run accepted the revision, not that the service works.

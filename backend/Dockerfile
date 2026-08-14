@@ -15,7 +15,12 @@ WORKDIR /srv
 RUN groupadd --system myolens && useradd --system --gid myolens --home /srv myolens
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --require-hashes=false -r requirements.txt
+# `--require-hashes` is a store_true flag, not a key=value option. Writing it as
+# `--require-hashes=false` makes pip print its usage banner and exit non-zero, which is what
+# failed the first Cloud Run deploy: the four test jobs were green, the image simply never built.
+# It is left recorded here because it is the exact class of defect a test suite cannot catch --
+# nothing in the repository executes the Dockerfile until the pipeline does.
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY artifacts ./artifacts
