@@ -1,0 +1,174 @@
+/* Global styles. Every value here resolves to a token; there are no literals below this line. */
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ---- intended-use banner ------------------------------------------------------------------ */
+.intended-use {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4) var(--space-6);
+  background: var(--status-warn-tint);
+  border-bottom: 1px solid var(--border-default);
+  color: var(--status-warn);
+}
+
+.intended-use__icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.intended-use__text {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  max-width: 110ch;
+}
+
+/* ---- status chips -------------------------------------------------------------------------
+ * A pale tint behind dark text, always with an icon and a word. Never a saturated block --
+ * that register belongs to the task colours alone.
+ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  white-space: nowrap;
+}
+
+.chip--refusal {
+  background: var(--status-flag-tint);
+  border-color: var(--status-flag);
+  color: var(--status-flag);
+}
+
+.chip--advisory {
+  background: var(--status-warn-tint);
+  border-color: var(--status-warn);
+  color: var(--status-warn);
+}
+
+.chip--verified {
+  background: var(--status-ok-tint);
+  border-color: var(--status-ok);
+  color: var(--status-ok);
+}
+
+.chip--excluded {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+  color: var(--status-excluded);
+}
+
+/* ---- task badges --------------------------------------------------------------------------
+ * The only saturated fills in the product. White text on each, all four verified at or above
+ * WCAG AA by scripts/verify_palette.py.
+ */
+.task-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-on-fill);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  white-space: nowrap;
+}
+
+/* ---- scaffold shell ------------------------------------------------------------------------ */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.top-bar__mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-lg);
+  background: var(--brand-primary);
+  color: var(--text-on-fill);
+  font-weight: var(--weight-bold);
+}
+
+.top-bar__name {
+  font-size: var(--text-heading-s);
+  font-weight: var(--weight-bold);
+}
+
+.top-bar__sub {
+  font-size: var(--text-label);
+  color: var(--text-secondary);
+}
+
+.page {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-raised);
+}
+
+.card__title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-heading-s);
+  font-weight: var(--weight-semibold);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  margin: var(--space-3) 0 0;
+}
