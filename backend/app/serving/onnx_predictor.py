@@ -19,6 +19,7 @@ implies it takes one array like everything else.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -168,6 +169,14 @@ def load_ensemble(artefact_dir: Path) -> EnsemblePredictor:
     return EnsemblePredictor(load_svm(artefact_dir), load_resnet(artefact_dir))
 
 
+@lru_cache(maxsize=1)
+def get_ensemble(artefact_dir_str: str) -> EnsemblePredictor:
+    """Process-wide cached load, the same discipline as ``ood_guard.get_ood_stats``: an ONNX
+    session is expensive enough to construct (two graphs, external weights) that reloading it
+    per request would dominate the 30-second session processing budget on its own."""
+    return load_ensemble(Path(artefact_dir_str))
+
+
 __all__ = [
     "CLASSES",
     "N_CHANNELS",
@@ -176,6 +185,7 @@ __all__ = [
     "EnsemblePredictor",
     "OnnxResnetPredictor",
     "OnnxSvmPredictor",
+    "get_ensemble",
     "load_ensemble",
     "load_resnet",
     "load_svm",

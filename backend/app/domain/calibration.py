@@ -70,6 +70,29 @@ def calibrated_tasks(assessment: dict[str, TaskCalibration]) -> tuple[str, ...]:
     return tuple(task for task, cal in assessment.items() if cal.sufficient)
 
 
+def restrict_to_calibrated(probabilities: np.ndarray, calibrated: tuple[str, ...]) -> np.ndarray:
+    """Zero every uncalibrated class and renormalise (D5): an uncalibrated task must never be
+    the argmax of a restricted row, because it was never a legitimate candidate for this
+    participant in the first place -- there is no evidence the model's usual accuracy holds for
+    a movement it never saw calibrated.
+
+    Raises rather than silently returning an all-zero row if ``calibrated`` is empty; the caller
+    (``routers/sessions.py``) is expected to have already refused segmentation via
+    ``NotCalibrated`` before reaching this point.
+    """
+    if not calibrated:
+        raise ValueError("cannot restrict to an empty calibrated-task set")
+    if probabilities.ndim != 2 or probabilities.shape[1] != len(CLASSES):
+        raise ValueError(
+            f"expected (n_windows, {len(CLASSES)}) probabilities, got shape {probabilities.shape}"
+        )
+    mask = np.array([1.0 if task in calibrated else 0.0 for task in CLASSES])
+    masked = probabilities * mask
+    row_sums = masked.sum(axis=1, keepdims=True)
+    safe_sums = np.where(row_sums > 0.0, row_sums, 1.0)
+    return masked / safe_sums
+
+
 def envelope_peak(envelope: np.ndarray) -> np.ndarray:
     """Per-channel peak of the calibration envelope — the %CAL reference vector.
 

@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from app.adapters.firestore_repo import COLLECTIONS, DocumentStore
+
 
 @dataclass(frozen=True)
 class TaskCalibrationSummary:
@@ -117,3 +119,20 @@ def new_calibration_record(
         ood_flag=ood_flag,
         active=True,
     )
+
+
+def load_active(store: DocumentStore, participant_id: str) -> CalibrationRecord | None:
+    """The participant's current calibration, or ``None`` if they have never calibrated.
+
+    Shared by ``routers/calibrations.py`` (to compute the next version, C5) and
+    ``routers/sessions.py`` (to source D5's output space and the %CAL reference) so both agree
+    on what "current" means.
+    """
+    docs = store.query(COLLECTIONS.CALIBRATIONS, participantId=participant_id, active=True)
+    if not docs:
+        return None
+    # There should never be more than one active record (a new upload always flips the previous
+    # one first), but the store's query contract does not itself enforce that -- guard
+    # defensively rather than trust it, and prefer the newest version if it were ever violated.
+    doc = max(docs, key=lambda d: d["version"])
+    return CalibrationRecord.from_document(doc)

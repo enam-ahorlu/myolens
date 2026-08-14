@@ -11,6 +11,7 @@ from app.domain.calibration import (
     difficulty_band,
     envelope_peak,
     mahalanobis_distance,
+    restrict_to_calibrated,
 )
 from app.serving.predictor import CLASSES
 
@@ -75,3 +76,37 @@ def test_difficulty_bands_partition_the_range_below_the_refusal_threshold():
     assert difficulty_band(1.0, 12.0) == "typical"
     assert difficulty_band(7.0, 12.0) == "moderate"
     assert difficulty_band(11.0, 12.0) == "atypical"
+
+
+def test_restrict_to_calibrated_zeroes_and_renormalises_uncalibrated_classes():
+    """D5: an uncalibrated task must never be the argmax of a restricted row."""
+    # Uniform probabilities: without restriction, every class ties for the argmax.
+    probabilities = np.full((3, len(CLASSES)), 1.0 / len(CLASSES))
+
+    restricted = restrict_to_calibrated(probabilities, ("WAK", "STDUP"))
+
+    dns_index = CLASSES.index("DNS")
+    ups_index = CLASSES.index("UPS")
+    assert np.all(restricted[:, dns_index] == 0.0)
+    assert np.all(restricted[:, ups_index] == 0.0)
+    assert np.allclose(restricted.sum(axis=1), 1.0)
+    # The two calibrated classes were equal before restriction, so they remain equal after.
+    wak_index = CLASSES.index("WAK")
+    stdup_index = CLASSES.index("STDUP")
+    assert np.allclose(restricted[:, wak_index], restricted[:, stdup_index])
+
+
+def test_restrict_to_calibrated_never_picks_an_uncalibrated_argmax_even_when_it_led():
+    """The uncalibrated class was the model's actual favourite here -- restriction must still
+    remove it as a candidate rather than merely down-weighting it."""
+    probabilities = np.array([[0.70, 0.10, 0.10, 0.10]])  # DNS heavily favoured
+
+    restricted = restrict_to_calibrated(probabilities, ("WAK", "STDUP", "UPS"))
+
+    assert restricted[0, CLASSES.index("DNS")] == 0.0
+    assert restricted.argmax(axis=1)[0] != CLASSES.index("DNS")
+
+
+def test_restrict_to_calibrated_rejects_an_empty_calibrated_set():
+    with pytest.raises(ValueError, match="empty"):
+        restrict_to_calibrated(np.zeros((1, len(CLASSES))), ())

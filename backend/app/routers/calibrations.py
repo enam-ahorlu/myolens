@@ -34,6 +34,7 @@ from app.domain.calibration_capture import (
 from app.domain.calibration_record import (
     CalibrationRecord,
     TaskCalibrationSummary,
+    load_active,
     new_calibration_record,
 )
 from app.domain.ood_guard import get_ood_stats
@@ -104,17 +105,6 @@ def _write_audit(store: DocumentStore, entry: audit.AuditEntry) -> None:
     store.set(COLLECTIONS.AUDIT, entry.id, entry.to_document())
 
 
-def _load_active(store: DocumentStore, participant_id: str) -> CalibrationRecord | None:
-    docs = store.query(COLLECTIONS.CALIBRATIONS, participantId=participant_id, active=True)
-    if not docs:
-        return None
-    # There should never be more than one active record (C5 flips the old one on every write),
-    # but the store's query contract does not itself enforce that -- guard defensively rather
-    # than trust it, and prefer the newest version if it were ever violated.
-    doc = max(docs, key=lambda d: d["version"])
-    return CalibrationRecord.from_document(doc)
-
-
 @router.post(
     "/v1/calibrations",
     response_model=CalibrationOut,
@@ -164,7 +154,7 @@ def create_calibration(
     band = difficulty_band(distance, settings.ood_threshold)
     ood_flag = distance >= settings.ood_threshold
 
-    previous = _load_active(store, participant.id)
+    previous = load_active(store, participant.id)
     next_version = 1 if previous is None else previous.version + 1
 
     record = new_calibration_record(
@@ -225,7 +215,7 @@ def create_calibration(
 )
 def get_active_calibration(participant_id: str, user: UserDep, store: StoreDep) -> CalibrationOut:
     participant = load_owned_participant(store, user, participant_id)
-    record = _load_active(store, participant.id)
+    record = load_active(store, participant.id)
     if record is None:
         raise NotCalibrated(participant.id)
     return CalibrationOut.from_domain(record)
