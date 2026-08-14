@@ -17,12 +17,27 @@ jobs:
     name: Technical-debt register
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Register and source must agree
         run: python scripts/check_satd.py --list
+
+  palette:
+    # The four task colours carry meaning -- a clinician reads the timeline by colour before
+    # reading a label -- so their separability is a correctness property, not a style
+    # preference, and it is gated like one. The check caught a real defect on its first run:
+    # the original violet and blue collapsed to a delta-E of 0.4 under deuteranopia.
+    name: Palette accessibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Contrast and colour-vision separation
+        run: python scripts/verify_palette.py --table
 
   backend:
     name: Backend tests
@@ -31,8 +46,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -66,7 +81,7 @@ jobs:
     # guard has to run from the repository root to be able to report that the directory is
     # missing. Caught on the first CI run of the project.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Does the front end exist yet?
         id: guard
@@ -78,7 +93,7 @@ jobs:
             echo "No frontend/package.json yet - skipping the front-end job."
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.guard.outputs.present == 'true'
         with:
           node-version: "22"
