@@ -115,3 +115,92 @@ jobs:
       - if: steps.guard.outputs.present == 'true'
         working-directory: frontend
         run: npm run build
+
+  deploy:
+    # Deployment is gated on every check above it. A pipeline that can ship a revision whose
+    # tests have not passed is not a pipeline, it is an upload button.
+    name: Deploy to Cloud Run
+    needs: [debt-register, palette, backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy the analysis service
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: myolens-api
+          source: backend
+          region: ${{ secrets.GCP_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          # Sizing is deliberate, not default.
+          #   2 GiB   - a ten-minute nine-channel CSV parsed by pandas transiently needs several
+          #             times the file size; the 512 MiB default OOMs on a real session.
+          #   900 s   - the non-functional budget is 30 s for a session, but Cloud Build cold
+          #             starts and the first ONNX session build are not in that budget.
+          #   1 vCPU, threads pinned to 1 - determinism. D4 requires byte-identical output for
+          #             identical input, and a threaded reduction order breaks that.
+          #   max 3   - a ceiling on cost, not a scaling target.
+          #   min 0   - scale to zero. Raised to 1 at submission so the examiner never meets a
+          #             cold start; left at 0 until then because min-instances=1 bills whether
+          #             anyone visits or not.
+          flags: >-
+            --memory=2Gi
+            --cpu=1
+            --timeout=900
+            --max-instances=3
+            --min-instances=0
+            --allow-unauthenticated
+          env_vars: |-
+            MYOLENS_ENVIRONMENT=production
+            MYOLENS_GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            MYOLENS_GCP_REGION=${{ secrets.GCP_REGION }}
+            MYOLENS_PREDICTOR=ensemble
+            OMP_NUM_THREADS=1
+            MKL_NUM_THREADS=1
+
+      - name: Prove the revision actually serves
+        # A green deploy step means Cloud Run accepted the revision, not that the service works.
+        # This asks the running container to state the contract it is serving, and fails if the
+        # montage or the class order came back wrong -- which would mean a stale image.
+        run: |
+          URL="${{ steps.deploy.outputs.url }}"
+          echo "Deployed to $URL"
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS --max-time 30 "$URL/v1/health" -o health.json; then break; fi
+            echo "attempt $attempt failed, retrying"; sleep 10
+          done
+          cat health.json
+          python - <<'CHECK'
+          import json, sys
+          h = json.load(open("health.json"))
+          problems = []
+          if h.get("status") != "ok":
+              problems.append(f"status is {h.get('status')!r}")
+          if h.get("classes") != ["DNS", "STDUP", "UPS", "WAK"]:
+              problems.append(f"class order is {h.get('classes')!r}")
+          if h.get("montage_channels") != 9:
+              problems.append(f"montage has {h.get('montage_channels')} channels")
+          if h.get("sampling_rate_hz") != 1920.0:
+              problems.append(f"sampling rate is {h.get('sampling_rate_hz')}")
+          if problems:
+              print("FAIL  the deployed revision is not serving the expected contract:")
+              for p in problems:
+                  print("  -", p)
+              sys.exit(1)
+          print("OK  deployed revision serves the frozen contract")
+          CHECK
+
+      - name: Record the URL
+        run: |
+          echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${{ steps.deploy.outputs.url }}\`" >> "$GITHUB_STEP_SUMMARY"
