@@ -8,7 +8,10 @@ what would make a store migration a rewrite of one file rather than of the appli
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Protocol
+
+from app.config import get_settings
 
 
 class DocumentStore(Protocol):
@@ -36,6 +39,47 @@ class Collections:
 
 
 COLLECTIONS = Collections()
+
+
+class FirestoreDocumentStore:
+    """``DocumentStore`` backed by real Google Cloud Firestore.
+
+    The only class in this codebase that imports ``google.cloud.firestore``. Constructed once per
+    process (see :func:`get_document_store`) and held for the life of the container; the client
+    is safe to share across requests.
+    """
+
+    def __init__(self, project: str | None = None) -> None:
+        from google.cloud import firestore  # deferred: keeps `firestore_repo` importable, and
+
+        # every test importable, without network credentials on the path.
+        self._client = firestore.Client(project=project) if project else firestore.Client()
+
+    def get(self, collection: str, doc_id: str) -> dict[str, Any] | None:
+        snapshot = self._client.collection(collection).document(doc_id).get()
+        return snapshot.to_dict() if snapshot.exists else None
+
+    def set(self, collection: str, doc_id: str, data: dict[str, Any]) -> None:
+        self._client.collection(collection).document(doc_id).set(data)
+
+    def update(self, collection: str, doc_id: str, data: dict[str, Any]) -> None:
+        self._client.collection(collection).document(doc_id).update(data)
+
+    def query(self, collection: str, **filters: Any) -> list[dict[str, Any]]:
+        ref: Any = self._client.collection(collection)
+        for field, value in filters.items():
+            ref = ref.where(field, "==", value)
+        return [doc.to_dict() for doc in ref.stream()]
+
+
+@lru_cache(maxsize=1)
+def get_document_store() -> DocumentStore:
+    """FastAPI dependency: the process-wide store. Tests override this via
+    ``app.dependency_overrides``, so it is never actually called — and therefore never actually
+    opens a network connection — outside a running deployment."""
+    settings = get_settings()
+    return FirestoreDocumentStore(project=settings.gcp_project_id or None)
+
 
 # TODO(TD-03): there is no tenant scoping anywhere in this module or in the security rules.
 # Prudent & deliberate. Real multi-tenancy means a tenant claim on every token, a tenant field on

@@ -132,6 +132,24 @@ class SegmentationNotApproved(MyoLensError):
         )
 
 
+class NotFound(MyoLensError):
+    """No resource of this type and id exists for this caller.
+
+    Deliberately also the response for a resource that exists but belongs to a different
+    clinician (A3) — the alternative, a 403, would confirm to an unauthorised caller that a
+    given id is real. ADR-004 makes the same call for unauthenticated callers; this extends it
+    to authenticated callers requesting someone else's record.
+    """
+
+    def __init__(self, resource: str, resource_id: str) -> None:
+        super().__init__(
+            status_code=404,
+            code=ErrorCode.NOT_FOUND,
+            message=f"No {resource} with id '{resource_id}' was found.",
+            details=[{"resource": resource, "id": resource_id}],
+        )
+
+
 class Unauthenticated(MyoLensError):
     """Absent, malformed, expired or wrong-audience Firebase ID token (I2, A1)."""
 
