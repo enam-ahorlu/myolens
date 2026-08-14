@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from app.adapters.firestore_repo import COLLECTIONS, DocumentStore, get_document_store
 from app.auth import CurrentUser, get_current_user
 from app.domain import audit
+from app.domain.ownership import load_owned_participant
 from app.domain.participants import (
     AffectedSide,
     AgeBand,
@@ -32,7 +33,7 @@ from app.domain.participants import (
     new_participant,
     soft_delete,
 )
-from app.errors import ErrorCode, MyoLensError, NotFound
+from app.errors import ErrorCode, MyoLensError
 
 router = APIRouter(prefix="/v1/participants", tags=["participants"])
 
@@ -103,19 +104,6 @@ StoreDep = Annotated[DocumentStore, Depends(get_document_store)]
 UserDep = Annotated[CurrentUser, Depends(get_current_user)]
 
 
-def _load_owned(store: DocumentStore, user: CurrentUser, participant_id: str) -> Participant:
-    """Fetch a participant, or raise NotFound for absent, soft-deleted, or not-mine (A3)."""
-    doc = store.get(COLLECTIONS.PARTICIPANTS, participant_id)
-    if doc is None:
-        raise NotFound("participant", participant_id)
-    participant = Participant.from_document(participant_id, doc)
-    if participant.is_deleted:
-        raise NotFound("participant", participant_id)
-    if user.role != "admin" and not participant.owned_by(user.uid):
-        raise NotFound("participant", participant_id)
-    return participant
-
-
 def _write_audit(store: DocumentStore, entry: audit.AuditEntry) -> None:
     store.set(COLLECTIONS.AUDIT, entry.id, entry.to_document())
 
@@ -161,14 +149,14 @@ def list_participants(user: UserDep, store: StoreDep) -> list[ParticipantOut]:
 
 @router.get("/{participant_id}", response_model=ParticipantOut, summary="View one participant")
 def get_participant(participant_id: str, user: UserDep, store: StoreDep) -> ParticipantOut:
-    return ParticipantOut.from_domain(_load_owned(store, user, participant_id))
+    return ParticipantOut.from_domain(load_owned_participant(store, user, participant_id))
 
 
 @router.patch("/{participant_id}", response_model=ParticipantOut, summary="Edit a participant")
 def edit_participant(
     participant_id: str, body: ParticipantEdit, user: UserDep, store: StoreDep
 ) -> ParticipantOut:
-    existing = _load_owned(store, user, participant_id)
+    existing = load_owned_participant(store, user, participant_id)
     if body.code is not None and not is_valid_code(body.code):
         raise InvalidCode(body.code)
 
@@ -199,7 +187,7 @@ def edit_participant(
     "/{participant_id}", response_model=ParticipantOut, summary="Soft-delete a participant"
 )
 def delete_participant(participant_id: str, user: UserDep, store: StoreDep) -> ParticipantOut:
-    existing = _load_owned(store, user, participant_id)
+    existing = load_owned_participant(store, user, participant_id)
     deleted = soft_delete(existing)
     store.update(COLLECTIONS.PARTICIPANTS, participant_id, deleted.to_document())
     _write_audit(

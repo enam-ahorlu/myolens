@@ -1,0 +1,308 @@
+{
+  "created_utc": "2026-08-13T04:49:25Z",
+  "labels": [
+    "DNS",
+    "STDUP",
+    "UPS",
+    "WAK"
+  ],
+  "channels": [
+    "sEMG: tensor fascia lata",
+    "sEMG: rectus femoris",
+    "sEMG: vastus medialis",
+    "sEMG: semimembranosus",
+    "sEMG: upper tibialis anterior",
+    "sEMG: lower tibialis anterior",
+    "sEMG: lateral gastrocnemius",
+    "sEMG: medial gastrocnemius",
+    "sEMG: soleus"
+  ],
+  "feature_names": [
+    "MAV_ch0",
+    "MAV_ch1",
+    "MAV_ch2",
+    "MAV_ch3",
+    "MAV_ch4",
+    "MAV_ch5",
+    "MAV_ch6",
+    "MAV_ch7",
+    "MAV_ch8",
+    "RMS_ch0",
+    "RMS_ch1",
+    "RMS_ch2",
+    "RMS_ch3",
+    "RMS_ch4",
+    "RMS_ch5",
+    "RMS_ch6",
+    "RMS_ch7",
+    "RMS_ch8",
+    "WL_ch0",
+    "WL_ch1",
+    "WL_ch2",
+    "WL_ch3",
+    "WL_ch4",
+    "WL_ch5",
+    "WL_ch6",
+    "WL_ch7",
+    "WL_ch8",
+    "ZC_ch0",
+    "ZC_ch1",
+    "ZC_ch2",
+    "ZC_ch3",
+    "ZC_ch4",
+    "ZC_ch5",
+    "ZC_ch6",
+    "ZC_ch7",
+    "ZC_ch8",
+    "WAMP_ch0",
+    "WAMP_ch1",
+    "WAMP_ch2",
+    "WAMP_ch3",
+    "WAMP_ch4",
+    "WAMP_ch5",
+    "WAMP_ch6",
+    "WAMP_ch7",
+    "WAMP_ch8",
+    "MNF_ch0",
+    "MNF_ch1",
+    "MNF_ch2",
+    "MNF_ch3",
+    "MNF_ch4",
+    "MNF_ch5",
+    "MNF_ch6",
+    "MNF_ch7",
+    "MNF_ch8",
+    "MDF_ch0",
+    "MDF_ch1",
+    "MDF_ch2",
+    "MDF_ch3",
+    "MDF_ch4",
+    "MDF_ch5",
+    "MDF_ch6",
+    "MDF_ch7",
+    "MDF_ch8",
+    "logSP_ch0",
+    "logSP_ch1",
+    "logSP_ch2",
+    "logSP_ch3",
+    "logSP_ch4",
+    "logSP_ch5",
+    "logSP_ch6",
+    "logSP_ch7",
+    "logSP_ch8"
+  ],
+  "feature_order": "feature-major: 8 blocks of 9 channels",
+  "window": {
+    "samples": 480,
+    "ms": 250,
+    "step_samples": 240,
+    "step_ms": 125,
+    "fs_true_hz": 1920.0,
+    "fs_feature_constant": 2000.0,
+    "fs_note": "Recordings are 1920 Hz (meta['fs'] = 1920.0001344). The feature extractor hardcodes 2000.0 for MNF/MDF; the serving extractor must use the same constant to reproduce the model exactly. Per-column z-scoring absorbs the resulting constant scale factor."
+  },
+  "preprocessing": {
+    "bandpass_hz": [
+      20,
+      450
+    ],
+    "bandpass_order": 4,
+    "envelope_ms": 50
+  },
+  "normalisation": {
+    "mode": "per_subject_zscore (transductive)",
+    "features": "per (subject, column), ddof=0, sd<1e-8 -> 1.0",
+    "envelopes": "per (subject, channel) over axes (0,2), ddof=0, sd<1e-8 -> 1.0",
+    "note": "NOT persistable. ONNX graphs expect already-normalised input; the service must z-score each session against that session's own statistics."
+  },
+  "training_subjects": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    11,
+    12,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
+  "holdout_subjects": [
+    10,
+    13,
+    22
+  ],
+  "seed": 42,
+  "environment": {
+    "python": "3.14.0",
+    "torch": "2.10.0+cu126",
+    "numpy": "2.4.1",
+    "train_device": "cuda",
+    "inference_device": "cpu",
+    "cudnn_deterministic": true,
+    "note": "Inference and the reference outputs are computed on CPU because Cloud Run serves on CPU. Reported holdout figures are therefore the figures the deployed model produces."
+  },
+  "inputs": {
+    "features": {
+      "path": "C:\\Users\\enama\\OneDrive\\Desktop\\Documents\\MSc CS\\FInal Project\\MSc Python Project\\features_out\\freq_windows_WAK_UPS_DNS_STDUP_v1_w250_ov50_conf60_AorR_features_ext.npz",
+      "sha256": "4a27b61232c5640eccee2790438b9f1dd5aaa99d2400649939eab8251be1c9aa"
+    },
+    "meta": {
+      "path": "C:\\Users\\enama\\OneDrive\\Desktop\\Documents\\MSc CS\\FInal Project\\MSc Python Project\\features_out\\freq_windows_WAK_UPS_DNS_STDUP_v1_w250_ov50_conf60_AorR_features_meta.csv",
+      "sha256": "25284ae86c1b5538c238912f0b8e865e151687ec8cf75a544d678c5703aae0f4"
+    },
+    "windows": {
+      "path": "C:\\Users\\enama\\OneDrive\\Desktop\\Documents\\MSc CS\\FInal Project\\MSc Python Project\\windows_WAK_UPS_DNS_STDUP_v1_w250_ov50_conf60_AorR.npz",
+      "sha256": "b67a3139d411c8df327b315ac87c44397a4f0b907bac257373df74af6a6af51f"
+    }
+  },
+  "models": {
+    "svm": {
+      "file": "svm_freq72.onnx",
+      "sha256": "c443dc1116db409e1128703e29f1d4bad9b8b75e1ba34bae484ffc7d9f0101e4",
+      "params": {
+        "kernel": "rbf",
+        "C": 1.0,
+        "gamma": "scale",
+        "class_weight": "balanced",
+        "probability": true
+      },
+      "input": {
+        "name": "input",
+        "shape": [
+          null,
+          72
+        ],
+        "dtype": "float32",
+        "expects": "per-session z-scored Freq-72 features"
+      },
+      "fit_seconds": 73.2,
+      "holdout": {
+        "macro_f1": 0.7906663544267096,
+        "balanced_acc": 0.7893763538839798,
+        "n_windows": 1983
+      }
+    },
+    "resnet_se_cd": {
+      "file": "resnet_se_cd.onnx",
+      "sha256": "17b6ebac207425c966c566859adde11a0fae96d85bac114cfe810b895c3adad2",
+      "params": {
+        "arch": "EMGResNet1D",
+        "use_se": true,
+        "n_params": 557276,
+        "epochs": 40,
+        "batch": 512,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "CosineAnnealingLR",
+        "patience": 7,
+        "chandrop_p": 0.2,
+        "chandrop_rescaling": false,
+        "val_subjects": [
+          5,
+          16,
+          20,
+          29,
+          33,
+          39
+        ]
+      },
+      "input": {
+        "name": "input",
+        "shape": [
+          null,
+          9,
+          500
+        ],
+        "dtype": "float32",
+        "expects": "per-session z-scored linear envelopes"
+      },
+      "output": {
+        "name": "logits",
+        "note": "apply softmax in the service"
+      },
+      "fit_seconds": 293.7,
+      "holdout": {
+        "macro_f1": 0.8679029682145943,
+        "balanced_acc": 0.8728870106984002,
+        "n_windows": 1983
+      }
+    }
+  },
+  "ensemble": {
+    "members": [
+      "svm",
+      "resnet_se_cd"
+    ],
+    "rule": "unweighted arithmetic mean of probability vectors, then argmax",
+    "reference": "ensemble_v2_combine.soft_vote with weights=None",
+    "holdout": {
+      "macro_f1": 0.876011428057532,
+      "balanced_acc": 0.8762904982732687,
+      "n_windows": 1983
+    }
+  },
+  "reference_outputs": {
+    "file": "reference_outputs.npz",
+    "sha256": "9a40aba68891472a262fb65e5c97d952f6779041df7a09dba487235db98da913",
+    "n_windows": 200
+  },
+  "ood_guard": {
+    "file": "ood_stats.npz",
+    "sha256": "793089e9283dc55ef1a16447af606aee593748c270a22e7624f25b5d0d4cfa89",
+    "created_utc": "2026-08-14T20:34:50Z",
+    "method": "Mahalanobis distance in the z-scored Freq-72 feature space, mean over calibration windows",
+    "pooled_over": "training subjects only (holdout excluded), z-scored per-subject exactly as at training time",
+    "ridge_regularisation": 0.001,
+    "n_training_windows": 24364,
+    "n_training_subjects": 37,
+    "training_pool_self_distance": {
+      "mean": 7.990627816020265,
+      "p95": 12.27366188155432,
+      "p99": 16.428939467941362,
+      "max": 47.167433079257826
+    },
+    "holdout_subject_distances": {
+      "10": {
+        "mean": 8.54608723520588,
+        "max": 21.541360858692606
+      },
+      "13": {
+        "mean": 8.45031197418485,
+        "max": 21.117411266907304
+      },
+      "22": {
+        "mean": 9.20975899312358,
+        "max": 24.687763451630282
+      }
+    },
+    "note": "Computed post-hoc (14 Aug 2026), not part of the original prepare_deployment_artifacts.py run -- that script never persisted OOD statistics. app/config.py's ood_threshold=12.0 predates this computation; sanity-check it against the printed percentiles above before trusting it as more than a placeholder."
+  }
+}
