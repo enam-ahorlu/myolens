@@ -132,6 +132,28 @@ class SegmentationNotApproved(MyoLensError):
         )
 
 
+class Unauthenticated(MyoLensError):
+    """Absent, malformed, expired or wrong-audience Firebase ID token (I2, A1)."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            status_code=401,
+            code=ErrorCode.UNAUTHENTICATED,
+            message=f"Sign in required. {reason}",
+        )
+
+
+class Forbidden(MyoLensError):
+    """Authenticated, but the caller's role does not permit this route (A2)."""
+
+    def __init__(self, required_role: str) -> None:
+        super().__init__(
+            status_code=403,
+            code=ErrorCode.FORBIDDEN,
+            message=f"This action requires the '{required_role}' role.",
+        )
+
+
 class SessionTooLong(MyoLensError):
     """The recording exceeds the accepted duration."""
 
