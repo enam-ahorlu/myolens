@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     artefact_dir: str = "artifacts"
 
     #: Bouts whose top-two margin between DNS and WAK falls below this are flagged for review.
-    #: DNS is the model's weakest class (65-70% recall) and DNS->WAK its commonest confusion.
+    #: DNS is the ensemble's weakest class (F1 0.81) and DNS->WAK its commonest confusion, still
+    #: 6.6% of descent windows after channel dropout and ensembling. The 12.5% figure sometimes
+    #: quoted for this boundary belongs to the single classical models, not to what is served.
     dns_wak_margin: float = 0.15
 
     #: Bouts whose mean confidence falls below this are flagged regardless of class.

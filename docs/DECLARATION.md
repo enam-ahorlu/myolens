@@ -35,12 +35,15 @@ in contrast to an earlier group project on which screens were drawn after the co
 the result that the design artefact described the software rather than specifying it.
 
 After implementation, six of the ten pre-clock screens — Login, Participants, Participant Detail,
-Calibration, Session & Segmentation Review, and Results — were re-themed inside the same Figma
-file, on a page named "MyoLens (retheme)", against the design tokens actually shipped in
-`frontend/src/styles/tokens.css`, and relabelled with MyoLens's own content (participant codes,
-Mahalanobis distances, bout confidence, %CAL metrics) in place of the kit's placeholder hospital
-data. This closes the loop between the pre-clock design and the built application; it is
-documentation, not a claim that the Figma file and the shipped frontend are pixel-identical.
+Calibration, Session & Segmentation Review, and Results — were re-themed against the design tokens
+actually shipped in `frontend/src/styles/tokens.css`, and relabelled with MyoLens's own content
+(participant codes, Mahalanobis distances, bout confidence, %CAL metrics) in place of the kit's
+placeholder hospital data. The re-themed screens sit on a page named "MyoLens (retheme)" in this
+project's working copy of the MediCare kit file (§6); the ten original screens remain in the
+project's own design file, `MyoLens — Design System & Screens`. They are two separate files, and
+the distinction is recorded here rather than glossed. This closes the loop between the pre-clock
+design and the built application; it is documentation, not a claim that the Figma file and the
+shipped frontend are pixel-identical.
 
 ## 3. Work performed inside the examination window
 

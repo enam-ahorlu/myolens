@@ -82,9 +82,11 @@ def _failure_modes(manifest: dict, settings) -> list[str]:
     ood = manifest.get("ood_guard", {})
     p95 = ood.get("training_pool_self_distance", {}).get("p95")
     return [
-        "Stair descent (DNS) is the model's weakest class, at 65-70% recall, and DNS-WAK is its "
-        "commonest confusion -- bouts near that boundary are flagged for review rather than "
-        "trusted outright.",
+        "Stair descent (DNS) is the weakest of the four classes for this ensemble, at about 0.81 "
+        "F1, and DNS-WAK is its commonest confusion: 6.6% of descent windows are still read as "
+        "level walking. (The 0.64-0.68 F1 and 12.5% confusion figures sometimes quoted for this "
+        "boundary describe the single classical models, not the ensemble served here.) Bouts near "
+        "that boundary are flagged for review rather than trusted outright.",
         f"Bouts whose DNS/WAK probability margin falls below {settings.dns_wak_margin} are "
         "surfaced first for review, before any metric is computed on them.",
         f"Bouts whose mean confidence falls below {settings.low_confidence_threshold} are "

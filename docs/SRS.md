@@ -44,10 +44,23 @@ practice, calling explicitly for "intelligent systems with warnings" and "fool-p
 
 Automatic classification can remove most of that manual labour. It cannot remove the clinician,
 and the reason is measurable rather than philosophical: the serving ensemble reaches a macro-F1 of
-**0.858** and its weakest class, stair descent, has a recall of 65–70%. A system that computed
-metrics directly from those labels would silently mis-attribute roughly one bout in seven. A
-system that *proposes* a segmentation, orders the doubtful parts first, and computes nothing until
-a human agrees, converts the same model from an unreliable oracle into a competent first draft.
+**0.858**, which leaves roughly one window in seven carrying the wrong label before smoothing, and
+its weakest class — stair descent — sits at **F1 0.81** with a residual **6.6%** of descent windows
+still read as level walking. Those figures describe *this* ensemble under *this* protocol. The
+single classical models are markedly worse on the same boundary (12.5% for the SVM) and do not
+describe what is deployed here; quoting their numbers against this system would be precisely the
+regime error FR-09 and NFR-04 exist to prevent.
+
+A system that computed metrics directly from unreviewed labels would therefore attribute part of
+one task's activation to another, silently, with nothing in the output looking unusual. A system
+that *proposes* a segmentation, orders the doubtful parts first, and computes nothing until a human
+agrees converts the same model from an unreliable oracle into a competent first draft.
+
+Two further reasons the human is not optional, and neither weakens if the model improves. The model
+has never been evaluated on any clinical population (CON-6), so its error rate on the people a
+clinic would actually record is unknown rather than merely small. And a metric computed from an
+unreviewed segmentation is *unfalsifiable by the person reading it* — nothing in a `%CAL` figure
+reveals which bouts produced it, so a reader has no way to notice that it is wrong.
 
 ### 1.4 Relationship to the author's thesis, and its limits
 
@@ -60,9 +73,22 @@ this application is §5.8.1 of that thesis, verbatim:
 > enough, especially once temporal smoothing or confidence thresholds are added to reject
 > low-certainty predictions."*
 
-MyoLens is that application, at that accuracy, and implements both of the named mechanisms —
-temporal smoothing (FR-06) and confidence-based triage (FR-07). No claim in this specification
-extends the thesis's findings beyond the population it measured.
+MyoLens is that application, at that accuracy, and it exceeds the stated threshold rather than
+merely meeting it: §5.8.1 conditions its claim on "around 80%", and the serving ensemble measures
+0.858.
+
+It implements the first of the two named mechanisms literally — temporal smoothing, FR-06, as a
+5-window majority vote followed by per-class minimum dwell. **The second it substitutes rather
+than implements, and the difference is stated here rather than glossed.** §5.8.1 contemplates
+confidence thresholds that *reject* low-certainty predictions automatically; MyoLens instead routes
+them to a person (FR-07, E2) and computes nothing at all until that person approves (FR-08).
+Automatic rejection would silently discard the windows the model finds hardest, which in this
+application are disproportionately stair descent — so a resting-on-thresholds system would quietly
+under-report the one task a clinician is most likely to be interested in. Review discards nothing
+and spends the clinician's attention on exactly those windows. The substitution is deliberate and
+is claimed as stricter than the thesis's condition, not as identical to it.
+
+No claim in this specification extends the thesis's findings beyond the population it measured.
 
 ### 1.5 Definitions
 
@@ -251,7 +277,7 @@ The centrepiece of this specification. Every row's justification is a measuremen
 | **FR-04** | Calibration shall be tracked **per task**; uncalibrated tasks are excluded from the output space rather than predicted and filtered | Functional | **Must** | Many rehabilitation participants cannot safely descend stairs | Clinical constraint; ~29 pp per-subject difficulty spread (§5.4) |
 | **FR-05** | The system shall refuse segmentation for participants beyond the OOD threshold | Functional | **Must** | Healthy-only cohort; clinical generalisation stated as unknown and critical | §5.12, §5.12.1, §6.4 |
 | **FR-06** | Per-window predictions shall be temporally smoothed: 5-window majority vote, then per-class minimum dwell | Functional | **Must** | Named thesis future work, and one of the two mechanisms §5.8.1 conditions its claim on | §5.8.1, §5.13, §2.4.1 |
-| **FR-07** | Bouts whose DNS/WAK probabilities fall within a margin, or whose mean confidence is low, shall be surfaced first for review | Functional | **Must** | Measured confusion structure — the model's specific weakness | DNS recall 65–70%; DNS→WAK confusion 12.5% → 6.6% |
+| **FR-07** | Bouts whose DNS/WAK probabilities fall within a margin, or whose mean confidence is low, shall be surfaced first for review | Functional | **Must** | Measured confusion structure — the model's specific weakness | DNS→WAK confusion 12.5% (single classical models) → **6.6%** (serving ensemble); DNS the ensemble's weakest class at **F1 0.81** |
 | **FR-08** | No metric shall be computed or displayed before the operator approves the segmentation | Functional | **Must** | The ethical spine. Without it the tool is an oracle again | Design decision, following from FR-07's premise |
 | **FR-09** | Accuracy shall be reported with its measurement regime named | Functional | **Must** | 0.858 is transductive; 0.817 is causal and does not describe this system | §5.11, §6.5 |
 | **FR-10** | Model version, artefact hash and calibration version shall be recorded against every inference | Functional | **Must** | The deep model of record changed mid-thesis; results are only comparable when provenance is known | §5.2, §5.8 |

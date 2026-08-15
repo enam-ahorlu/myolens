@@ -52,8 +52,9 @@ A ΔE near 1 is the just-noticeable difference; below about 10, two large flat f
 as the same colour.
 
 **DNS/WAK is held to a stricter floor than every other pair, and it is the strongest pair in the
-table.** That is the whole point. Stair descent has the model's worst recall (65–70%) and its
-commonest confusion is DNS mistaken for WAK. A palette in which those two fills looked similar
+table.** That is the whole point. Stair descent is the ensemble's weakest class (F1 0.81) and its
+commonest confusion is DNS mistaken for WAK — 6.6% of descent windows, even after channel dropout
+and ensembling more than halved it. A palette in which those two fills looked similar
 would hide the system's known weakness behind a colour choice — the reviewer would be least able
 to see a distinction exactly where the model is least reliable.
 

@@ -54,7 +54,7 @@ const CARD: ModelCard = {
   classes: ["DNS", "STDUP", "UPS", "WAK"],
   montage_channels: ["sEMG: tensor fascia lata", "sEMG: rectus femoris"],
   montage_contract_version: "1.0.0",
-  failure_modes: ["Stair descent (DNS) is the model's weakest class, at 65-70% recall."],
+  failure_modes: ["Stair descent (DNS) is the weakest of the four classes, at about 0.81 F1."],
   intended_use: "MyoLens is not a medical device.\n\nSecond paragraph.",
 };
 
