@@ -2,16 +2,18 @@
  * Session upload, automatic segmentation, and segmentation review for one participant
  * (D1-D8 and E3-E8, SRS §4.2 D/E).
  *
- * There is no "list sessions" route on the frozen API surface (§10) -- a session is reached by
- * the id its own creation returns, not browsed from a list. This screen therefore holds the
- * whole upload -> segment -> review -> approve flow as client-side state for one session at a
- * time, rather than a route keyed by a session id nothing can look up independently yet.
- * Results (metrics/export) is the next screen to hang off the session this creates.
+ * Reached two ways, and they are deliberately the same screen. `/participants/:id/session` is
+ * the upload flow for a new recording; `/participants/:id/session/:sessionId` reopens an
+ * existing one, hydrating from `GET /v1/sessions/{sid}` -- which returns exactly what
+ * `POST .../segment` returns, so "just segmented" and "opened an hour later" are one state.
+ *
+ * That retrieval route did not exist at first, and its absence was the sharpest thing the
+ * examiner walkthrough found: a correction "persisted" (E3) into Firestore and was then
+ * unobservable from anywhere. Close the tab and the segmentation was gone for good.
  *
  * Corrections (relabel/split/merge/exclude) return only the bouts a single PATCH touched, plus
  * any id it removed (split adds one, merge removes one) -- `applyCorrection` reconciles that
- * into the full bout list locally rather than re-fetching, since there is no "list bouts" route
- * to re-fetch from.
+ * into the full bout list locally rather than re-fetching the lot for a one-bout change.
  */
 
 import { useEffect, useState } from "react";
@@ -311,7 +313,10 @@ function ResultsSection({ sessionId }: { sessionId: string }) {
 }
 
 export function SessionPage() {
-  const { participantId } = useParams<{ participantId: string }>();
+  const { participantId, sessionId } = useParams<{
+    participantId: string;
+    sessionId?: string;
+  }>();
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<SessionOut | null>(null);
@@ -319,6 +324,31 @@ export function SessionPage() {
   const [flaggedCount, setFlaggedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Reopening a recording. `sessionId` is present only on /participants/:id/session/:sessionId,
+  // which the participant page's recordings list links to; the bare /session route is still the
+  // upload screen and this effect does nothing there. The fetched shape is exactly what
+  // `segmentSession` returns, so an hour-old session and a just-segmented one are the same state.
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    setError(null);
+    api
+      .getSession(sessionId)
+      .then((result) => {
+        if (cancelled) return;
+        setSession(result.session);
+        setBouts(result.bouts);
+        setFlaggedCount(result.flagged_count);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : "Could not load this recording.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
 
   const busy = phase !== "idle";
 

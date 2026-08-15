@@ -12,6 +12,7 @@ const correctBout = vi.fn();
 const approveSession = vi.fn();
 const getSessionMetrics = vi.fn();
 const exportSession = vi.fn();
+const getSession = vi.fn();
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
@@ -31,6 +32,7 @@ vi.mock("../lib/api", async () => {
       approveSession: (sessionId: string) => approveSession(sessionId),
       getSessionMetrics: (sessionId: string) => getSessionMetrics(sessionId),
       exportSession: (sessionId: string) => exportSession(sessionId),
+      getSession: (sessionId: string) => getSession(sessionId),
     },
   };
 });
@@ -504,5 +506,80 @@ describe("SessionPage review ordering on the page", () => {
     const approve = await reachSegmented();
     const table = screen.getByRole("table");
     expect(table.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("SessionPage reopened by id", () => {
+  // The route that closed the walkthrough's one raised gap. Before it existed, a segmentation and
+  // every correction made to it lived only in the tab that produced them.
+  const REOPENED = {
+    session: {
+      id: "s1",
+      participant_id: "p1",
+      status: "segmented" as const,
+      created_at: "2026-08-15T18:26:00Z",
+      sample_count: 40320,
+      duration_seconds: 21,
+      model_version: "ensemble-1.0.0",
+      calibration_version: 1,
+      window_count: 167,
+    },
+    bouts: [
+      {
+        id: "b1",
+        task: "WAK",
+        start_ms: 0,
+        end_ms: 2000,
+        window_count: 16,
+        mean_confidence: 0.55,
+        flagged: true,
+        flag_reasons: ["low_confidence"],
+        excluded: false,
+        exclusion_reason: null,
+        corrected: true,
+        original_task: "DNS",
+      },
+    ],
+    flagged_count: 1,
+  };
+
+  function renderReopened() {
+    return render(
+      <MemoryRouter initialEntries={["/participants/p1/session/s1"]}>
+        <Routes>
+          <Route
+            path="/participants/:participantId/session/:sessionId"
+            element={<SessionPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  beforeEach(() => {
+    getSession.mockReset();
+    getSessionMetrics.mockReset();
+    getSessionMetrics.mockResolvedValue({
+      session_id: "s1",
+      channels: [],
+      flagged_count: 0,
+      tasks: [],
+    });
+  });
+
+  it("hydrates the session and its bouts, correction and all", async () => {
+    getSession.mockResolvedValue(REOPENED);
+    renderReopened();
+
+    expect(await screen.findByText(/1 bout · 1 flagged for review/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(corrected\)/i)).toBeInTheDocument();
+    expect(getSession).toHaveBeenCalledWith("s1");
+  });
+
+  it("surfaces a refusal rather than rendering an empty screen", async () => {
+    getSession.mockRejectedValue(new ApiError(404, "not_found", "No such session.", []));
+    renderReopened();
+
+    expect(await screen.findByText(/no such session/i)).toBeInTheDocument();
   });
 });

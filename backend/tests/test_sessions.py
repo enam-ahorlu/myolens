@@ -778,3 +778,140 @@ def test_export_requires_authentication():
     response = TestClient(app).get("/v1/sessions/does-not-exist/export")
     assert response.status_code == 401
     _reset()
+
+
+# -- Retrieval (SRS §4.2 E3's "persists", and §10's correction) ----------------------------------
+#
+# Until these two routes existed, a session could only be seen in the response of the call that
+# created or changed it. A correction "persisted" in Firestore and was unobservable from anywhere:
+# reload the page and it was gone for good. §10 already carried two GETs keyed by a session id --
+# metrics and export -- and nothing that would ever yield one.
+
+
+def test_get_session_returns_the_same_shape_segmentation_returned():
+    """A caller reopening a session should get exactly what the caller who segmented it got.
+    Two shapes for one thing is two things to keep in step."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, segmentation = _segmented_session(store, objects)
+
+    fetched = client.get(f"/v1/sessions/{session_id}")
+
+    assert fetched.status_code == 200
+    body = fetched.json()
+    assert body["session"] == segmentation["session"]
+    assert body["bouts"] == segmentation["bouts"]
+    assert body["flagged_count"] == segmentation["flagged_count"]
+    _reset()
+
+
+def test_get_session_shows_a_correction_that_was_made_earlier():
+    """The point of the route. E3 says a relabel persists; this is the only thing that can
+    observe that it did."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, segmentation = _segmented_session(store, objects)
+    bout_id = segmentation["bouts"][0]["id"]
+    client.patch(
+        f"/v1/sessions/{session_id}/bouts/{bout_id}",
+        json={"op": "relabel", "task": "WAK"},
+    )
+
+    reopened = client.get(f"/v1/sessions/{session_id}").json()
+
+    relabelled = next(b for b in reopened["bouts"] if b["id"] == bout_id)
+    assert relabelled["task"] == "WAK"
+    assert relabelled["corrected"] is True
+    assert relabelled["original_task"] == "STDUP"
+    _reset()
+
+
+def test_get_session_returns_an_unsegmented_session_with_no_bouts():
+    """Not an error. A session that has been uploaded but not segmented is a state the client
+    has to render, and `status` is what says which state it is."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    objects.put(_object("session", participant_id, "one"), _session_csv())
+    client = _client_as(CLINICIAN_A, store, objects)
+    created = client.post(
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
+    ).json()
+
+    body = client.get(f"/v1/sessions/{created['id']}").json()
+
+    assert body["session"]["status"] == "uploaded"
+    assert body["bouts"] == []
+    assert body["flagged_count"] == 0
+    _reset()
+
+
+def test_a_clinician_cannot_fetch_another_clinician_s_session():
+    """404, not 403 -- the same non-disclosure judgement every other owned resource makes."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    _client, session_id, _segmentation = _segmented_session(store, objects)
+
+    intruder = _client_as(CLINICIAN_B, store, objects)
+    response = intruder.get(f"/v1/sessions/{session_id}")
+
+    assert response.status_code == 404
+    _reset()
+
+
+def test_get_session_requires_authentication():
+    _reset()
+    response = TestClient(app).get("/v1/sessions/does-not-exist")
+    assert response.status_code == 401
+    _reset()
+
+
+def test_list_participant_sessions_is_newest_first():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    client = _client_as(CLINICIAN_A, store, objects)
+    created_ids = []
+    for token in ("one", "two", "three"):
+        objects.put(_object("session", participant_id, token), _session_csv())
+        created_ids.append(
+            client.post(
+                "/v1/sessions",
+                json={
+                    "participant_id": participant_id,
+                    "object_name": _object("session", participant_id, token),
+                },
+            ).json()["id"]
+        )
+
+    listed = client.get(f"/v1/participants/{participant_id}/sessions").json()
+
+    assert [s["id"] for s in listed] == list(reversed(created_ids))
+    _reset()
+
+
+def test_list_participant_sessions_does_not_leak_another_clinician_s_participant():
+    """A3 is enforced through the participant: the sessions are never queried at all."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store, owner="clinician-a")
+
+    intruder = _client_as(CLINICIAN_B, store, objects)
+    response = intruder.get(f"/v1/participants/{participant_id}/sessions")
+
+    assert response.status_code == 404
+    _reset()
+
+
+def test_list_participant_sessions_is_empty_for_a_participant_with_none():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    client = _client_as(CLINICIAN_A, store, objects)
+
+    assert client.get(f"/v1/participants/{participant_id}/sessions").json() == []
+    _reset()

@@ -8,6 +8,7 @@ const getParticipant = vi.fn();
 const editParticipant = vi.fn();
 const deleteParticipant = vi.fn();
 const getActiveCalibration = vi.fn();
+const listParticipantSessions = vi.fn();
 const navigate = vi.fn();
 
 vi.mock("react-router-dom", async () => {
@@ -27,6 +28,7 @@ vi.mock("../lib/api", async () => {
       editParticipant: (id: string, body: unknown) => editParticipant(id, body),
       deleteParticipant: (id: string) => deleteParticipant(id),
       getActiveCalibration: (id: string) => getActiveCalibration(id),
+      listParticipantSessions: (id: string) => listParticipantSessions(id),
     },
   };
 });
@@ -62,6 +64,8 @@ describe("ParticipantDetailPage", () => {
     getActiveCalibration.mockRejectedValue(
       new ApiError(404, "not_calibrated", "No calibration on record.", []),
     );
+    listParticipantSessions.mockReset();
+    listParticipantSessions.mockResolvedValue([]);
     navigate.mockReset();
   });
 
@@ -170,5 +174,50 @@ describe("ParticipantDetailPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/cannot delete/i);
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ParticipantDetailPage recordings list", () => {
+  // The gap the examiner walkthrough found: nothing on the frozen surface yielded a session id,
+  // so a recording could only be seen in the tab that created it. This list is the way back in.
+  const SESSION = {
+    id: "s1",
+    participant_id: "p1",
+    status: "approved" as const,
+    created_at: "2026-08-15T18:26:00Z",
+    sample_count: 40320,
+    duration_seconds: 21,
+    model_version: "ensemble-1.0.0",
+    calibration_version: 1,
+    window_count: 167,
+  };
+
+  beforeEach(() => {
+    getParticipant.mockReset();
+    getActiveCalibration.mockReset();
+    getActiveCalibration.mockRejectedValue(
+      new ApiError(404, "not_calibrated", "No calibration on record.", []),
+    );
+    listParticipantSessions.mockReset();
+    navigate.mockReset();
+  });
+
+  it("links each recording to the screen that reopens it", async () => {
+    getParticipant.mockResolvedValue(PARTICIPANT);
+    listParticipantSessions.mockResolvedValue([SESSION]);
+    renderPage();
+
+    const open = await screen.findByRole("link", { name: /open/i });
+    expect(open).toHaveAttribute("href", "/participants/p1/session/s1");
+    expect(screen.getByText(/approved/i)).toBeInTheDocument();
+  });
+
+  it("shows no recordings section for a participant with none", async () => {
+    getParticipant.mockResolvedValue(PARTICIPANT);
+    listParticipantSessions.mockResolvedValue([]);
+    renderPage();
+
+    await screen.findByText("P-001");
+    expect(screen.queryByText(/recordings/i)).not.toBeInTheDocument();
   });
 });

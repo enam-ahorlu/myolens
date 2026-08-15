@@ -13,6 +13,7 @@ step, not this one -- segmenting a recording is not the same act as trusting its
 from __future__ import annotations
 
 import math
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -95,6 +96,10 @@ class SessionOut(BaseModel):
     id: str
     participant_id: str
     status: str
+    #: Added with the retrieval routes. A list of recordings that cannot say *when* each one was
+    #: made is a list of opaque ids, and this is the field the list is ordered by -- so the
+    #: client can show the ordering it was given rather than take it on trust.
+    created_at: datetime
     sample_count: int
     duration_seconds: float
     model_version: str | None
@@ -107,6 +112,7 @@ class SessionOut(BaseModel):
             id=session.id,
             participant_id=session.participant_id,
             status=session.status.value,
+            created_at=session.created_at,
             sample_count=session.sample_count,
             duration_seconds=session.duration_seconds,
             model_version=session.model_version,
@@ -329,6 +335,56 @@ def create_session(
         ),
     )
     return SessionOut.from_domain(session)
+
+
+@router.get(
+    "/v1/participants/{participant_id}/sessions",
+    response_model=list[SessionOut],
+    summary="List this participant's sessions, newest first",
+)
+def list_participant_sessions(
+    participant_id: str, user: UserDep, store: StoreDep
+) -> list[SessionOut]:
+    """A3 is enforced by the participant, not the session: if the participant is not this
+    clinician's, ``load_owned_participant`` raises NotFound and the sessions are never queried.
+
+    Newest first because a clinician returning to a participant is almost always returning to the
+    recording they just made, not the first one they ever made.
+    """
+    load_owned_participant(store, user, participant_id)
+    docs = store.query(COLLECTIONS.SESSIONS, participantId=participant_id)
+    sessions = sorted(
+        (Session.from_document(d) for d in docs),
+        key=lambda s: s.created_at,
+        reverse=True,
+    )
+    return [SessionOut.from_domain(s) for s in sessions]
+
+
+@router.get(
+    "/v1/sessions/{session_id}",
+    response_model=SegmentationOut,
+    summary="Fetch one session and its bouts",
+)
+def get_session(session_id: str, user: UserDep, store: StoreDep) -> SegmentationOut:
+    """Returns the same shape ``POST .../segment`` returns, deliberately: a caller reopening a
+    session wants exactly what the caller who segmented it got, and two shapes for one thing is
+    two things to keep in step.
+
+    Bouts come back in temporal order -- ``start_window`` -- which is what a timeline needs.
+    Review ordering (E2) is applied by the client, as it is everywhere else.
+
+    An unsegmented session simply has no bouts; that is a state, not an error, and the ``status``
+    field on the session says which one it is.
+    """
+    session = _load_session(store, user, session_id)
+    bout_docs = store.query(COLLECTIONS.BOUTS, sessionId=session.id)
+    bouts = sorted((Bout.from_document(d) for d in bout_docs), key=lambda b: b.start_window)
+    return SegmentationOut(
+        session=SessionOut.from_domain(session),
+        bouts=[BoutOut.from_domain(b) for b in bouts],
+        flagged_count=sum(1 for b in bouts if b.flagged),
+    )
 
 
 @router.post(

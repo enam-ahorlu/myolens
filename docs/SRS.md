@@ -454,6 +454,20 @@ would be one question away from being dismantled. Logged as TD-08 with a repayme
 > the implementation did not yet meet it. No new user-facing capability was added, and nothing was
 > de-scoped to pay for any of it.
 
+> **On E3's retrieval routes (15 Aug).** Two endpoints were added to §10 of the plan of record —
+> `GET /v1/participants/{pid}/sessions` and `GET /v1/sessions/{sid}` — and, on the same reasoning,
+> no `SCOPE_CHANGE_LOG.md` entry was written. **E3's acceptance criterion is the single word
+> "Persists."** It did: a relabel was written to Firestore and survived. It was also unobservable
+> from anywhere, because no route returned a session or its bouts, so the criterion could not be
+> tested by any caller and a clinician who closed the tab lost the correction permanently. The
+> frozen surface already carried two GETs keyed by a session id — `.../metrics` and `.../export` —
+> and nothing that would ever produce one, which is an internal inconsistency rather than a
+> deliberate minimum. `GET /v1/sessions/{sid}` returns the exact response body `POST .../segment`
+> already returned, and the list returns records the API was already writing; both are scoped by
+> the owning participant, so A3 is enforced exactly where it was. No new capability, no new
+> computation, nothing de-scoped to pay for it. Found by using the deployed product as the
+> examiner will, which is also where the criterion's untestability first became visible.
+
 ### 4.3 Explicitly out of scope
 
 Pre-decided so that a temptation at hour 31 needs no deliberation. Each exclusion carries its

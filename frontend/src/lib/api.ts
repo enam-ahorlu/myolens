@@ -185,6 +185,7 @@ export interface SessionOut {
   id: string;
   participant_id: string;
   status: SessionStatus;
+  created_at: string;
   sample_count: number;
   duration_seconds: number;
   model_version: string | null;
@@ -399,6 +400,13 @@ export const api = {
 
   segmentSession: (sessionId: string) =>
     request<SegmentationOut>(`/v1/sessions/${sessionId}/segment`, { method: "POST" }),
+
+  // Retrieval. `getSession` returns the same shape `segmentSession` does, so reopening a session
+  // and having just segmented one are the same state as far as this client is concerned.
+  listParticipantSessions: (participantId: string) =>
+    request<SessionOut[]>(`/v1/participants/${participantId}/sessions`),
+
+  getSession: (sessionId: string) => request<SegmentationOut>(`/v1/sessions/${sessionId}`),
 
   // ---- Segmentation review, approval (E3-E8) ------------------------------------------------
 

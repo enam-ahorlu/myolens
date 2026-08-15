@@ -88,6 +88,17 @@ export default function App() {
               </RequireAuth>
             }
           />
+          {/* The same screen, addressed by an existing recording rather than starting a new one.
+              One component, because reopening a session and having just made one are the same
+              state -- GET /v1/sessions/{sid} returns exactly what POST .../segment returns. */}
+          <Route
+            path="/participants/:participantId/session/:sessionId"
+            element={
+              <RequireAuth>
+                <SessionPage />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/admin"
             element={

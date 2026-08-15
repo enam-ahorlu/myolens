@@ -90,18 +90,32 @@ that table.
 
 Fixed in `78c1a40`: the doubled task heading, and the approve control preceding the bouts.
 
-**Open, and deliberately not fixed: an existing session cannot be reached from the interface.**
-The frozen API surface (§10) has no route that lists or fetches a session, so `SessionPage` holds
-one session as client-side state from the moment it is created. A seeded, approved session — with
-its bouts, its metrics and its PDF — is therefore invisible to a clinician who did not upload it
-in that browser tab. The examiner meets an upload form, not the demonstration the seed created.
+**Raised during the walk, and fixed the same evening: an existing session could not be reached
+from the interface.** The frozen API surface (§10) had no route that listed or fetched a session,
+so `SessionPage` held one session as client-side state from the moment it was created. A seeded,
+approved session — with its bouts, its metrics and its PDF — was invisible to a clinician who did
+not upload it in that browser tab. Worse than a navigation gap: **E3 is a Must whose acceptance
+criterion is the single word "Persists,"** and a relabel did persist, into Firestore, where nothing
+could observe it. Close the tab and the correction was gone for good.
 
-Adding a list-or-fetch route would be a scope change, and `SCOPE_CHANGE_LOG.md` is empty by
-design, so this is **raised rather than quietly implemented**. Two consequences to carry into the
-writing phase:
+It was raised rather than implemented on the spot, because adding a route touches the frozen-scope
+claim and that is not a call to make quietly. On review it is the same omission as the participants
+one corrected on 14 August, one layer down: §10 already listed **two** GETs keyed by a session id —
+metrics and export — and nothing that would ever yield one. A list that consumes an identifier it
+cannot produce is internally inconsistent, not deliberately minimal.
 
-- The **User Manual** must direct the examiner to upload `backend/artifacts/demo/demo_Sub10_session.csv.gz`
-  themselves. That is a better demonstration anyway — they watch segmentation happen rather than
-  read someone else's result — but it has to be said, because the application will not say it.
-- **Maintenance & Future Evolution** should name it as the first thing a second iteration adds,
-  with the reason it was not added here.
+`MyoLens_PLAN_OF_RECORD.md` §10 was therefore corrected in place, to eighteen endpoints, with the
+reasoning recorded there. `GET /v1/sessions/{sid}` returns the exact shape `POST .../segment`
+already returned; `GET /v1/participants/{pid}/sessions` returns the session records the API was
+already writing. Neither computes, decides or exposes anything new, and both are scoped by the
+owning participant, so A3 is enforced where it always was. The participant page now lists a
+participant's recordings, and `/participants/:id/session/:sessionId` reopens one.
+
+Two consequences still carry into the writing phase:
+
+- The **User Manual** should still show the examiner how to upload
+  `backend/artifacts/demo/demo_Sub10_session.csv.gz` themselves. Watching segmentation happen is a
+  better demonstration than reading someone else's result — the difference now is that it is a
+  choice rather than the only option.
+- **Maintenance & Future Evolution** has a worked example to hand: a requirement whose acceptance
+  criterion no route could test, found by using the product rather than by reading it.

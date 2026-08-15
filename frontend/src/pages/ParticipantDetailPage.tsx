@@ -15,14 +15,30 @@ import {
   type AgeBand,
   type CalibrationOut,
   type Participant,
+  type SessionOut,
   type Sex,
 } from "../lib/api";
 import { CalibrationStatusBadge } from "./CalibrationPage";
+import { StatusChip, type StatusTone } from "../components/StatusChip";
 import { TASKS, TASK_LABEL } from "../lib/tasks";
 
 const AGE_BANDS: AgeBand[] = ["under_18", "18_29", "30_44", "45_59", "60_74", "75_plus"];
 const SEXES: Sex[] = ["female", "male", "other", "undisclosed"];
 const SIDES: AffectedSide[] = ["left", "right", "bilateral", "none"];
+
+/** A recording's place in the workflow, in the same tinted-chip register every other status
+ * in the product uses. "Approved" is verified because it is the state a human signed off on;
+ * the two before it are advisory because they are states still awaiting one. */
+const SESSION_STATUS: Record<string, { tone: StatusTone; label: string }> = {
+  uploaded: { tone: "advisory", label: "Awaiting segmentation" },
+  segmented: { tone: "advisory", label: "Awaiting review" },
+  approved: { tone: "verified", label: "Approved" },
+};
+
+export function SessionStatusChip({ status }: { status: string }) {
+  const entry = SESSION_STATUS[status] ?? { tone: "excluded" as StatusTone, label: status };
+  return <StatusChip tone={entry.tone} label={entry.label} />;
+}
 
 function formatBand(band: AgeBand): string {
   return band.replace("_", "-").replace("under-18", "under 18").replace("75-plus", "75+");
@@ -34,6 +50,7 @@ export function ParticipantDetailPage() {
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [calibration, setCalibration] = useState<CalibrationOut | null>(null);
+  const [sessions, setSessions] = useState<SessionOut[]>([]);
 
   const [editing, setEditing] = useState(false);
   const [code, setCode] = useState("");
@@ -61,6 +78,13 @@ export function ParticipantDetailPage() {
       .getActiveCalibration(participantId)
       .then(setCalibration)
       .catch(() => setCalibration(null));
+    // The recordings already made for this participant. Without this list a session could only
+    // be seen in the tab that created it: nothing on the frozen surface used to yield a session
+    // id, so closing the tab lost the segmentation and every correction made to it.
+    api
+      .listParticipantSessions(participantId)
+      .then(setSessions)
+      .catch(() => setSessions([]));
   }, [participantId]);
 
   function startEditing() {
@@ -147,6 +171,37 @@ export function ParticipantDetailPage() {
           <p>
             <Link to={`/participants/${participant.id}/session`}>Upload a session &rarr;</Link>
           </p>
+          {sessions.length > 0 && (
+            <>
+              <h4 style={{ marginBottom: "var(--space-2)" }}>Recordings</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Recorded</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map((session) => (
+                    <tr key={session.id}>
+                      <td>{new Date(session.created_at).toLocaleString()}</td>
+                      <td>{session.duration_seconds.toFixed(1)}s</td>
+                      <td>
+                        <SessionStatusChip status={session.status} />
+                      </td>
+                      <td>
+                        <Link to={`/participants/${participant.id}/session/${session.id}`}>
+                          Open &rarr;
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
           <div className="row">
             <button type="button" className="link-button" onClick={startEditing}>
               Edit
