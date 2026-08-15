@@ -6,11 +6,12 @@
  * wraps every route except `/login`, so an unauthenticated visitor never sees a page's worth of
  * failed API calls before being redirected.
  */
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { Footer } from "./components/Footer";
 import { IntendedUseBanner } from "./components/IntendedUseBanner";
 import { RequireAuth } from "./components/RequireAuth";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { AdminPage } from "./pages/AdminPage";
 import { CalibrationPage } from "./pages/CalibrationPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ModelCardPage } from "./pages/ModelCardPage";
@@ -30,6 +31,10 @@ function TopBar() {
       </span>
       {user && (
         <nav className="top-bar__nav">
+          {/* Always shown when signed in (A4): the backend, not this link's visibility, is the
+              authorisation boundary -- a non-admin who follows it sees the same 403 the API
+              returns, worded the same way. */}
+          <Link to="/admin">Admin</Link>
           <span className="muted" style={{ margin: 0 }}>
             {user.email}
           </span>
@@ -80,6 +85,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <SessionPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth>
+                <AdminPage />
               </RequireAuth>
             }
           />

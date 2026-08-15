@@ -14,6 +14,7 @@ import {
 } from "firebase/auth";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { firebaseConfigured, getFirebaseAuth } from "./firebase";
+import { useIdleTimeout } from "./idleTimeout";
 
 interface AuthState {
   user: User | null;
@@ -40,6 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
   }, [configured]);
+
+  // A5: sign out after 30 minutes with no mouse/keyboard/touch activity while someone is
+  // signed in. Never armed for a signed-out visitor -- there is nothing to time out.
+  useIdleTimeout(!!user, () => {
+    void firebaseSignOut(getFirebaseAuth());
+  });
 
   const value: AuthState = {
     user,

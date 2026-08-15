@@ -317,6 +317,48 @@ th {
   font-weight: var(--weight-medium);
 }
 
+/* ---- responsive: 1920 -> 768px, three breakpoints (I5, SRS §2.4) -----------------------------
+   768px is the documented floor (§2.4): a gait laboratory does not review recordings on a phone,
+   and the timeline/table-heavy screens are the reason that floor is a decision, not an omission.
+   Nothing below rewrites layout -- .page's max-width/centring and .page--split's auto-fit grid
+   already respond fluidly without a query. These three breakpoints trim padding and let wide
+   tables scroll horizontally instead of forcing the viewport wider than 768px. */
+@media (max-width: 1024px) {
+  .page {
+    padding: var(--space-5);
+  }
+}
+
+@media (max-width: 900px) {
+  .top-bar {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .top-bar__nav {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  form {
+    max-width: 100%;
+  }
+
+  /* A bout or metrics table is wider than 768px can show comfortably; scroll it horizontally
+     rather than letting it force the whole page wider than the documented floor. */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
 /* ---- visually hidden but still announced to assistive tech ---------------------------------- */
 .visually-hidden {
   position: absolute;

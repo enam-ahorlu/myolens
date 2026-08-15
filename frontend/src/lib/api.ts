@@ -287,6 +287,17 @@ export interface ModelCard {
   intended_use: string;
 }
 
+// ---- Administration (A4) ---------------------------------------------------------------------
+
+export type Role = "clinician" | "admin";
+
+export interface Clinician {
+  uid: string;
+  email: string | null;
+  role: Role;
+  disabled: boolean;
+}
+
 export const api = {
   // Unauthenticated (see backend/app/routers/models.py) -- reachable from the footer before
   // sign-in, the same as the route itself.
@@ -375,6 +386,16 @@ export const api = {
     request<SessionMetricsOut>(`/v1/sessions/${sessionId}/metrics`),
 
   exportSession: (sessionId: string) => requestBlob(`/v1/sessions/${sessionId}/export`),
+
+  // ---- Administration (A4) -------------------------------------------------------------------
+
+  listClinicians: () => request<Clinician[]>("/v1/admin/clinicians"),
+
+  setClinicianRole: (uid: string, role: Role) =>
+    request<Clinician>(`/v1/admin/clinicians/${uid}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
 
   // request/requestBlob exported directly in case a future screen needs a frozen-surface route
   // not yet wrapped above.

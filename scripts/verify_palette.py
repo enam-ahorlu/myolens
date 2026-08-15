@@ -51,6 +51,29 @@ BRAND = {"brand/primary": "#0F5C73"}
 
 WHITE = "#FFFFFF"
 
+# --------------------------------------------------------------------------------------------
+# I6 (SRS §4.2): "WCAG 2.1 AA contrast | Should | Automated check." Until this list existed the
+# automated check only covered the four task-badge fills against white -- correct for what a
+# task badge actually renders, but not "an automated check" of the product's contrast in any
+# broader sense. These are the foreground/background pairs every other screen actually renders,
+# read straight out of global.css/tokens.css/StatusChip.tsx, so a token change that quietly
+# breaks body text, a button, or a status chip's *tinted* background (as opposed to the raw hex
+# against white, which is not how status colours are ever shown) fails CI here too.
+# --------------------------------------------------------------------------------------------
+TEXT_PAIRS = {
+    "text-primary on bg-canvas (page background)": ("#131619", "#F9F9F9"),
+    "text-primary on bg-surface (cards, tables)": ("#131619", "#FFFFFF"),
+    "text-secondary on bg-surface (muted copy, footer link)": ("#6C7278", "#FFFFFF"),
+    "text-secondary on bg-canvas": ("#6C7278", "#F9F9F9"),
+    "text-on-fill on brand-primary (primary button, top-bar mark)": ("#FFFFFF", "#0F5C73"),
+    "text-on-fill on brand-hover (button hover)": ("#FFFFFF", "#0B4A5C"),
+    "brand-primary on bg-surface (links)": ("#0F5C73", "#FFFFFF"),
+    "status-flag on its own tint (refusal chip, as rendered)": ("#7F1D1D", "#FEF2F2"),
+    "status-warn on its own tint (advisory chip, as rendered)": ("#B45309", "#FFFAEB"),
+    "status-ok on its own tint (verified chip, as rendered)": ("#15803D", "#F0FDF4"),
+    "status-excluded on bg-subtle (excluded chip, as rendered)": ("#5B6167", "#EDF1F3"),
+}
+
 MIN_CONTRAST = 4.5           # WCAG 2.1 AA, normal text
 MIN_TASK_SEPARATION = 12.0   # any two task fills, under common vision types
 MIN_DNS_WAK = 30.0           # the pair the model confuses: held to a much stricter floor
@@ -197,6 +220,13 @@ def main() -> int:
                 f"WCAG AA floor."
             )
 
+    for name, (fg, bg) in TEXT_PAIRS.items():
+        ratio = contrast(fg, bg)
+        if ratio < MIN_CONTRAST:
+            failures.append(
+                f"{name}: {fg} on {bg} is {ratio:.2f}:1, below the {MIN_CONTRAST}:1 WCAG AA floor."
+            )
+
     for a, b in itertools.combinations(TASK, 2):
         for vision in COMMON_VISION:
             d = separation(TASK[a], TASK[b], vision)
@@ -229,9 +259,9 @@ def main() -> int:
     )
     dns_wak = min(separation(TASK["task/dns"], TASK["task/wak"], v) for v in ALL_VISION)
     print(
-        f"OK  {len(everything)} colours clear WCAG AA on white text; weakest task pair is "
-        f"dE {weakest_common:.1f} under common vision types; DNS/WAK never closer than "
-        f"dE {dns_wak:.1f}."
+        f"OK  {len(everything)} colours clear WCAG AA on white text, {len(TEXT_PAIRS)} app-wide "
+        f"text/background pairs clear WCAG AA (I6); weakest task pair is dE {weakest_common:.1f} "
+        f"under common vision types; DNS/WAK never closer than dE {dns_wak:.1f}."
     )
     return 0
 

@@ -75,7 +75,10 @@
   --status-warn-tint: #FFFAEB;
   --status-ok: #15803D;           /* verified, sufficient, approved */
   --status-ok-tint: #F0FDF4;
-  --status-excluded: #6C7278;     /* retained in the record, dropped from metrics */
+  /* Deliberately darker than text-secondary (#6C7278): this text sits on bg-subtle, not
+     bg-surface, and #6C7278 on bg-subtle clears WCAG AA against white but not against that
+     tint (4.28:1) -- caught by scripts/verify_palette.py's I6 app-wide pair check. */
+  --status-excluded: #5B6167;     /* retained in the record, dropped from metrics */
 
   /* ---- spacing ------------------------------------------------------------------------ */
   --space-1: 0.125rem;
