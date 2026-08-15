@@ -125,6 +125,62 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+  deploy-frontend:
+    # The frontend's own deploy: nothing prior to this job served the built app at a URL --
+    # front-end CI only linted/tested/built it into an artefact nobody could reach. Firebase
+    # Hosting because it is the same GCP/Firebase project already backing Auth/Firestore/Storage,
+    # not a new account to provision. Gated the same way as the backend deploy: every check
+    # above it must pass first.
+    name: Deploy Frontend to Firebase Hosting
+    needs: [debt-register, palette, backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        # VITE_* values are baked into the built JS at this step (Vite has no server-side
+        # runtime to read env vars from later) -- these four are Firebase's own "not secret"
+        # client config, not credentials, but they still come from repo secrets rather than a
+        # committed .env so the project's identity isn't hardcoded into source control.
+        env:
+          VITE_API_BASE_URL: https://myolens-api-ta5ir46azq-ew.a.run.app
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        # Reuses the same deployer service account as the backend deploy. It needs the Firebase
+        # Hosting Admin IAM role granted on the `myolens` project -- a one-click grant in GCP
+        # Console > IAM & Admin > IAM, since the cloud sandbox that wrote this pipeline has no
+        # credentials to grant IAM roles itself. If this job fails with a permission error,
+        # that role is what's missing.
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Firebase Hosting
+        working-directory: .
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only hosting --project "${{ secrets.GCP_PROJECT_ID }}" --non-interactive
+
   deploy:
     # Deployment is gated on every check above it. A pipeline that can ship a revision whose
     # tests have not passed is not a pipeline, it is an upload button.
