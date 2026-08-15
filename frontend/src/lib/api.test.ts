@@ -82,3 +82,21 @@ describe("api client", () => {
     });
   });
 });
+
+describe("contentTypeFor", () => {
+  // Regression: the pages previously forwarded the browser's File.type straight to the API.
+  // Windows with Excel installed reports a plain .csv as "application/vnd.ms-excel", which the
+  // API's allow-list refuses -- so uploads would have failed on the examiner's machine and not
+  // on the developer's. The extension is the only thing we actually know.
+  it("reads gzip from the extension, not from the browser's guess", async () => {
+    const { api } = await import("./api");
+    expect(api.contentTypeFor("demo_Sub10_session.csv.gz")).toBe("application/gzip");
+    expect(api.contentTypeFor("SESSION.CSV.GZ")).toBe("application/gzip");
+  });
+
+  it("treats everything else as text/csv", async () => {
+    const { api } = await import("./api");
+    expect(api.contentTypeFor("session.csv")).toBe("text/csv");
+    expect(api.contentTypeFor("weird-name-no-extension")).toBe("text/csv");
+  });
+});

@@ -328,7 +328,7 @@ marginal cost is near zero.
 
 | ID | Requirement | Pri | Acceptance |
 |---|---|---|---|
-| C1 | Upload a labelled calibration capture per task | Must | Non-conformant (montage mismatch or missing `label` column) → 409, `MONTAGE_REJECTED`, naming every violating field -- the same refusal D3 uses for the same failure class, deliberately, so a clinician sees one behaviour for "this recording doesn't match the montage" everywhere in the product |
+| C1 | Upload a labelled calibration capture per task | Must | Non-conformant (montage mismatch or missing `label` column) → 409, `MONTAGE_REJECTED`, naming every violating field -- the same refusal D3 uses for the same failure class, deliberately, so a clinician sees one behaviour for "this recording doesn't match the montage" everywhere in the product. Accepts CSV and gzipped CSV on the same terms as D2 |
 | C2 | Per-task sufficiency: ≥20 windows across ≥3 non-contiguous blocks | Must | Both counts shown per task; both must pass |
 | C3 | Persist the per-channel peak calibration envelope as the %CAL reference | Must | One stored vector of nine values |
 | C4 | **OOD guard** — Mahalanobis distance against the pooled training distribution; above threshold, refuse | Must | Out-of-range fixture triggers refusal; asserted by test |
@@ -341,7 +341,7 @@ marginal cost is near zero.
 | ID | Requirement | Pri | Acceptance |
 |---|---|---|---|
 | D1 | Browser uploads direct to Cloud Storage via V4 signed URL; the API receives an object name | Must | A 100 MB session uploads successfully (CON-1) |
-| D2 | Accept CSV and gzipped CSV; hard cap 10 minutes | Must | Longer → a clear rejection, not a crash |
+| D2 | Accept CSV and gzipped CSV; hard cap 10 minutes | Must | Longer → a clear rejection, not a crash. Byte ceilings are checked *before* the object is downloaded and again before it is decompressed, so "not a crash" holds for an oversized or highly-compressed object as well as a long one |
 | D3 | **Montage validation** server-side once the object lands | Must | Mismatch → 409, every violation named |
 | D4 | Pipeline: window → Freq-72 → whole-session z-score → ONNX ensemble | Must | The same input twice → byte-identical output |
 | D5 | Output space restricted to calibrated tasks | Must | An uncalibrated task is never predicted |
@@ -434,13 +434,25 @@ would be one question away from being dismantled. Logged as TD-08 with a repayme
 
 | ID | Requirement | Pri | Acceptance |
 |---|---|---|---|
-| I1 | Pydantic validation everywhere, typed error envelope | Must | A malformed payload → 422, never a stack trace |
+| I1 | Pydantic validation everywhere, typed error envelope | Must | A malformed payload → 422, never a stack trace. Includes `participant_id`, `object_name` and `content_type`, the three fields that reach Cloud Storage |
 | I2 | Firebase ID-token verification on every route | Must | Absent, expired or wrong-audience → 401 |
-| I3 | Rate limit inference per user per hour | Should | Over the limit → 429 |
+| I3 | Rate limit per user per hour, on separate buckets for segmentation, session registration and signed-URL minting | Should | Over the limit → 429; exhausting one bucket does not consume another |
 | I4 | Structured JSON logging with no participant identifiers | Must | Log inspection test |
 | I5 | Responsive 1920 → 768 px | Should | Verified at three breakpoints |
 | I6 | WCAG 2.1 AA contrast | Should | Automated check |
 | I7 | Global error boundary | Must | A forced 500 → a usable message |
+
+> **On the three refinements above (C1, D2, I1, I3).** Each narrows or completes an already-frozen
+> control rather than adding one, which is why none appears in `SCOPE_CHANGE_LOG.md`. D2 already
+> promised "a clear rejection, not a crash", but the duration cap is expressed in samples and could
+> only be applied after the whole object had been downloaded and parsed — so the promise held for a
+> long recording and not for a large one. I3 already bounded "the only genuinely expensive route",
+> but the two cheaper routes that reach it were unbounded, so the ceiling could be walked around
+> rather than hit. C1's own criterion exists to make calibration and session uploads behave
+> identically for the same class of defect, and they did not: one accepted gzip and the other
+> reported it as an unparseable montage. In each case the requirement was already the right one and
+> the implementation did not yet meet it. No new user-facing capability was added, and nothing was
+> de-scoped to pay for any of it.
 
 ### 4.3 Explicitly out of scope
 

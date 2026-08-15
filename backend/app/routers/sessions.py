@@ -18,7 +18,7 @@ from typing import Annotated, Literal
 
 import numpy as np
 from fastapi import APIRouter, Depends, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.adapters.firestore_repo import COLLECTIONS, DocumentStore, get_document_store
 from app.adapters.storage import ObjectStore, get_object_store
@@ -40,7 +40,7 @@ from app.domain.features import extract_freq72
 from app.domain.metrics import CoContractionResult, TaskMetrics, compute_task_metrics, percent_cal
 from app.domain.montage import MONTAGE
 from app.domain.normalisation import zscore_envelopes, zscore_features
-from app.domain.ownership import load_owned_participant
+from app.domain.ownership import load_owned_participant, verify_upload_object
 from app.domain.session_capture import parse_session_csv
 from app.domain.sessions import Session, SessionStatus, mark_approved, mark_segmented, new_session
 from app.domain.signal import bandpass_filter, linear_envelope
@@ -56,7 +56,12 @@ from app.errors import (
     SegmentationNotApproved,
     SegmentationNotReady,
 )
-from app.middleware.rate_limit import InProcessRateLimiter, get_rate_limiter
+from app.middleware.rate_limit import (
+    BUCKET_SEGMENT,
+    BUCKET_SESSION_CREATE,
+    InProcessRateLimiter,
+    get_rate_limiter,
+)
 from app.routers.session_report import render_session_report_pdf
 from app.serving.onnx_predictor import get_ensemble
 
@@ -77,8 +82,13 @@ class InvalidCorrection(MyoLensError):
 
 
 class SessionCreate(BaseModel):
-    participant_id: str
-    object_name: str  # returned by POST /v1/uploads/sign, now populated in the bucket
+    #: Constrained for the same reason as SignRequest's: it is compared against the object
+    #: name's own participant segment, and an unconstrained string there would make that
+    #: comparison meaningless.
+    participant_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    #: Returned by POST /v1/uploads/sign. Verified -- shape, minting clinician, participant and
+    #: byte size -- by verify_upload_object before anything is read from the bucket.
+    object_name: str = Field(min_length=1, max_length=512)
 
 
 class SessionOut(BaseModel):
@@ -282,10 +292,21 @@ def _none_if_nan(value: float) -> float | None:
     summary="Register an uploaded session recording",
 )
 def create_session(
-    body: SessionCreate, user: UserDep, store: StoreDep, objects: ObjectStoreDep
+    body: SessionCreate,
+    user: UserDep,
+    store: StoreDep,
+    objects: ObjectStoreDep,
+    limiter: RateLimiterDep,
 ) -> SessionOut:
+    # C2: cheap per call, but each one commits the container to a download and a full parse.
+    allowed, _remaining = limiter.check(user.uid, bucket=BUCKET_SESSION_CREATE)
+    if not allowed:
+        raise RateLimited(limiter.limit_for(BUCKET_SESSION_CREATE))
+
     participant = load_owned_participant(store, user, body.participant_id)
 
+    # C3/C1: shape, minting clinician, participant and byte size, all before the download.
+    verify_upload_object(objects, user, body.object_name, body.participant_id, "session")
     raw_bytes = objects.read_bytes(body.object_name)
     signal = parse_session_csv(raw_bytes)  # raises MontageRejected / SessionTooLong
 
@@ -325,9 +346,9 @@ def segment_session(
     # I3: segmentation is the only genuinely expensive route -- checked first, before the
     # session even loads, so a caller over the ceiling is refused as cheaply as possible.
     settings = get_settings()
-    allowed, _remaining = limiter.check(user.uid)
+    allowed, _remaining = limiter.check(user.uid, bucket=BUCKET_SEGMENT)
     if not allowed:
-        raise RateLimited(settings.rate_limit_per_hour)
+        raise RateLimited(limiter.limit_for(BUCKET_SEGMENT))
 
     session = _load_session(store, user, session_id)
 

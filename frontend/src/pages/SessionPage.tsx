@@ -326,10 +326,11 @@ export function SessionPage() {
 
     try {
       setPhase("signing");
-      const signed = await api.signUpload("session", participantId, file.type || "text/csv");
+      const contentType = api.contentTypeFor(file.name);
+      const signed = await api.signUpload("session", participantId, contentType);
 
       setPhase("uploading");
-      await api.putToSignedUrl(signed.upload_url, file.type || "text/csv", file);
+      await api.putToSignedUrl(signed.upload_url, contentType, file);
 
       setPhase("registering");
       const created = await api.createSession(participantId, signed.object_name);

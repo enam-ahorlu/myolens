@@ -60,7 +60,26 @@ class Settings(BaseSettings):
     #: Mahalanobis distance beyond which segmentation is refused outright.
     ood_threshold: float = 12.0
 
+    #: I3's ceiling on segmentation, the only genuinely expensive route.
     rate_limit_per_hour: int = 30
+
+    #: Registering an uploaded recording is cheap per call but commits the container to a
+    #: download and a full parse, so it is bounded too -- more generously than segmentation,
+    #: because a clinician legitimately registers several recordings per session of work.
+    session_create_rate_limit_per_hour: int = 60
+
+    #: Minting a signed URL costs almost nothing server-side, but each one is a licence to write
+    #: an object into the bucket. Unbounded, that is a storage-cost channel that never touches an
+    #: expensive route at all.
+    upload_sign_rate_limit_per_hour: int = 120
+
+    #: Byte ceiling applied to an uploaded object before it is downloaded, and again to its
+    #: decompressed size before it is parsed. Ten minutes of nine channels at 1920 Hz is roughly
+    #: 104 MB of plain CSV and D1's acceptance criterion names a 100 MB upload, so the ceiling
+    #: sits above both with headroom. Distinct from D2's ten-minute cap, which is a clinical
+    #: limit expressed in samples and can only be checked after decoding.
+    max_upload_bytes: int = 160 * 1024 * 1024
+
     session_processing_budget_seconds: int = 30
 
     #: Comma-separated origins the browser is allowed to call the API from (CORS). The deployed

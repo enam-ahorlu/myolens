@@ -31,6 +31,16 @@ CLINICIAN_B = CurrentUser(uid="clinician-b", email="b@clinic.example", role="cli
 RNG = np.random.default_rng(1234)
 
 
+def _object(kind: str, participant_id: str, token: str, uid: str = "clinician-a") -> str:
+    """An object name in the shape ``storage.new_object_name`` now mints.
+
+    The owning clinician's uid and the participant id are both path segments, and both are
+    checked by ``verify_upload_object`` when the object is registered -- so a test that names an
+    object has to name one that could actually have been minted for that caller.
+    """
+    return f"{kind}/{uid}/{participant_id}/{token}.csv"
+
+
 class FakeObjectStore:
     """In-memory ``ObjectStore``: ``read_bytes`` serves whatever ``put`` was given."""
 
@@ -45,6 +55,11 @@ class FakeObjectStore:
 
     def read_bytes(self, object_name: str) -> bytes:
         return self._objects[object_name]
+
+    def size_bytes(self, object_name: str) -> int | None:
+        """Mirrors GcsObjectStore: ``None`` when the object is absent, rather than raising."""
+        blob = self._objects.get(object_name)
+        return None if blob is None else len(blob)
 
 
 def _synthetic_calibration_csv(*, sufficient_tasks: tuple[str, ...] = ("DNS", "STDUP")) -> bytes:
@@ -115,7 +130,8 @@ def _neutral_ood(monkeypatch: pytest.MonkeyPatch):
 def test_create_requires_authentication():
     _reset()
     response = TestClient(app).post(
-        "/v1/calibrations", json={"participant_id": "p1", "object_name": "calibration/p1/x.csv"}
+        "/v1/calibrations",
+        json={"participant_id": "p1", "object_name": _object("calibration", "p1", "x")},
     )
     assert response.status_code == 401
     _reset()
@@ -142,7 +158,10 @@ def test_create_rejects_a_participant_that_is_not_the_caller_s():
 
     response = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/x.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "x"),
+        },
     )
 
     assert response.status_code == 404
@@ -153,12 +172,15 @@ def test_create_reports_per_task_sufficiency_and_persists_a_calibration_record()
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("calibration/p1/one.csv", _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "one"), _synthetic_calibration_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/one.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "one"),
+        },
     )
 
     assert response.status_code == 201
@@ -189,12 +211,15 @@ def test_create_rejects_a_non_conformant_capture_c1():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     bad_csv = _synthetic_calibration_csv().replace(b"sEMG: soleus", b"sEMG: not-a-channel")
-    objects.put("calibration/p1/bad.csv", bad_csv)
+    objects.put(_object("calibration", participant_id, "bad"), bad_csv)
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/bad.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "bad"),
+        },
     )
 
     assert response.status_code == 409
@@ -209,12 +234,15 @@ def test_create_rejects_a_capture_missing_the_label_column_c1():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     csv_without_label = _synthetic_calibration_csv().replace(b",label", b",not_label")
-    objects.put("calibration/p1/no-label.csv", csv_without_label)
+    objects.put(_object("calibration", participant_id, "no-label"), csv_without_label)
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/no-label.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "no-label"),
+        },
     )
 
     assert response.status_code == 409
@@ -228,12 +256,15 @@ def test_create_writes_an_audit_entry():
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("calibration/p1/one.csv", _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "one"), _synthetic_calibration_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/one.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "one"),
+        },
     )
     assert response.status_code == 201
 
@@ -247,17 +278,23 @@ def test_recalibration_supersedes_the_previous_active_record_c5():
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("calibration/p1/one.csv", _synthetic_calibration_csv())
-    objects.put("calibration/p1/two.csv", _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "one"), _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "two"), _synthetic_calibration_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     first = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/one.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "one"),
+        },
     ).json()
     second = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/two.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "two"),
+        },
     ).json()
 
     assert first["version"] == 1
@@ -279,12 +316,15 @@ def test_out_of_distribution_capture_is_refused_but_retained_c4(monkeypatch: pyt
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("calibration/p1/one.csv", _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "one"), _synthetic_calibration_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/one.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "one"),
+        },
     )
 
     assert response.status_code == 422
@@ -314,17 +354,23 @@ def test_get_active_calibration_returns_the_current_version():
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("calibration/p1/one.csv", _synthetic_calibration_csv())
-    objects.put("calibration/p1/two.csv", _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "one"), _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "two"), _synthetic_calibration_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/one.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "one"),
+        },
     )
     client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/two.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "two"),
+        },
     )
 
     response = client.get(f"/v1/participants/{participant_id}/calibration/active")
@@ -338,11 +384,14 @@ def test_a_clinician_cannot_read_another_clinician_s_calibration():
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store, owner="clinician-a")
-    objects.put("calibration/p1/one.csv", _synthetic_calibration_csv())
+    objects.put(_object("calibration", participant_id, "one"), _synthetic_calibration_csv())
     owner_client = _client_as(CLINICIAN_A, store, objects)
     owner_client.post(
         "/v1/calibrations",
-        json={"participant_id": participant_id, "object_name": "calibration/p1/one.csv"},
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("calibration", participant_id, "one"),
+        },
     )
 
     other_client = _client_as(CLINICIAN_B, store, objects)

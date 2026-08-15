@@ -242,3 +242,49 @@ class SessionTooLong(MyoLensError):
             ),
             details=[{"seconds": round(seconds, 1), "cap_seconds": cap_seconds}],
         )
+
+
+class UploadTooLarge(MyoLensError):
+    """The uploaded object exceeds the accepted size, in bytes.
+
+    Distinct from :class:`SessionTooLong`, which is about *duration* and can only be evaluated
+    after the recording has been decoded. This one is about bytes, is evaluated before the object
+    is downloaded or decompressed, and is the guard that stops a caller committing the container
+    to an unbounded read (D2's cap is a clinical limit, not a memory limit).
+    """
+
+    def __init__(self, detail: str, max_bytes: int, actual_bytes: int | None = None) -> None:
+        megabytes = max_bytes / (1024 * 1024)
+        super().__init__(
+            status_code=413,
+            code=ErrorCode.PAYLOAD_TOO_LARGE,
+            message=(
+                f"{detail}. MyoLens accepts recordings of up to {megabytes:.0f} MB. "
+                "Split the recording and upload the parts separately."
+            ),
+            details=[
+                {
+                    "max_bytes": max_bytes,
+                    **({"actual_bytes": actual_bytes} if actual_bytes is not None else {}),
+                }
+            ],
+        )
+
+
+class InvalidUpload(MyoLensError):
+    """The supplied object name is not one this API minted, or not in the shape it mints.
+
+    422 rather than 404: the client is being told its *request* is malformed, which is true and
+    actionable -- the value belongs to POST /v1/uploads/sign and should be passed back verbatim.
+    A name that is well formed but belongs to another clinician is a different case and is
+    answered with NotFound, following the same discipline ADR-004 applies to cross-clinician
+    participant access: do not confirm that someone else's object exists.
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            status_code=422,
+            code=ErrorCode.VALIDATION_FAILED,
+            message=detail,
+            details=[{"field": "object_name", "problem": detail}],
+        )

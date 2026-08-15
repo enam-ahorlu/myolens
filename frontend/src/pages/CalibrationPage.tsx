@@ -72,10 +72,11 @@ export function CalibrationPage() {
 
     try {
       setPhase("signing");
-      const signed = await api.signUpload("calibration", participantId, file.type || "text/csv");
+      const contentType = api.contentTypeFor(file.name);
+      const signed = await api.signUpload("calibration", participantId, contentType);
 
       setPhase("uploading");
-      await api.putToSignedUrl(signed.upload_url, file.type || "text/csv", file);
+      await api.putToSignedUrl(signed.upload_url, contentType, file);
 
       setPhase("registering");
       const record = await api.createCalibration(participantId, signed.object_name);

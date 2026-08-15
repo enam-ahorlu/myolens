@@ -15,6 +15,8 @@ vi.mock("../lib/api", async () => {
     ...actual,
     api: {
       getActiveCalibration: (id: string) => getActiveCalibration(id),
+      contentTypeFor: (fileName: string) =>
+        /\.gz$/i.test(fileName) ? "application/gzip" : "text/csv",
       signUpload: (kind: string, id: string, contentType: string) =>
         signUpload(kind, id, contentType),
       putToSignedUrl: (url: string, contentType: string, file: unknown) =>

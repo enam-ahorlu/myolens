@@ -38,6 +38,16 @@ WAK = CLASSES.index("WAK")
 STDUP = CLASSES.index("STDUP")
 
 
+def _object(kind: str, participant_id: str, token: str, uid: str = "clinician-a") -> str:
+    """An object name in the shape ``storage.new_object_name`` now mints.
+
+    The owning clinician's uid and the participant id are both path segments, and both are
+    checked by ``verify_upload_object`` when the object is registered -- so a test that names an
+    object has to name one that could actually have been minted for that caller.
+    """
+    return f"{kind}/{uid}/{participant_id}/{token}.csv"
+
+
 class FakeObjectStore:
     def __init__(self) -> None:
         self._objects: dict[str, bytes] = {}
@@ -50,6 +60,11 @@ class FakeObjectStore:
 
     def read_bytes(self, object_name: str) -> bytes:
         return self._objects[object_name]
+
+    def size_bytes(self, object_name: str) -> int | None:
+        """Mirrors GcsObjectStore: ``None`` when the object is absent, rather than raising."""
+        blob = self._objects.get(object_name)
+        return None if blob is None else len(blob)
 
 
 class FakeEnsemble:
@@ -138,7 +153,8 @@ def _give_active_calibration(
 def test_create_session_requires_authentication():
     _reset()
     response = TestClient(app).post(
-        "/v1/sessions", json={"participant_id": "p1", "object_name": "session/p1/x.csv"}
+        "/v1/sessions",
+        json={"participant_id": "p1", "object_name": _object("session", "p1", "x")},
     )
     assert response.status_code == 401
     _reset()
@@ -148,11 +164,15 @@ def test_create_session_registers_a_valid_upload():
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     )
 
     assert response.status_code == 201
@@ -172,11 +192,15 @@ def test_create_session_rejects_a_montage_mismatch():
     frame = pd.DataFrame(RNG.normal(size=(100, 3)), columns=["a", "b", "c"])
     buffer = io.BytesIO()
     frame.to_csv(buffer, index=False)
-    objects.put("session/p1/bad.csv", buffer.getvalue())
+    objects.put(_object("session", participant_id, "bad"), buffer.getvalue())
     client = _client_as(CLINICIAN_A, store, objects)
 
     response = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/bad.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "bad"),
+        },
     )
 
     assert response.status_code == 409
@@ -188,11 +212,15 @@ def test_segment_requires_a_calibration():
     store = FakeDocumentStore()
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     response = client.post(f"/v1/sessions/{created['id']}/segment")
@@ -209,11 +237,15 @@ def test_segment_restricts_the_output_space_to_calibrated_tasks_d5():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     response = client.post(f"/v1/sessions/{created['id']}/segment")
@@ -244,11 +276,15 @@ def test_segment_writes_an_audit_entry():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
     client.post(f"/v1/sessions/{created['id']}/segment")
 
@@ -264,11 +300,15 @@ def test_a_clinician_cannot_segment_another_clinician_s_session():
     objects = FakeObjectStore()
     participant_id = _register_participant(store, owner="clinician-a")
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     owner_client = _client_as(CLINICIAN_A, store, objects)
 
     created = owner_client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     other_client = _client_as(CLINICIAN_B, store, objects)
@@ -285,13 +325,17 @@ def test_segment_is_rate_limited_per_user_i3():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
     limiter = InProcessRateLimiter(limit_per_hour=1)  # one instance, so hits actually accumulate
     app.dependency_overrides[get_rate_limiter] = lambda: limiter
 
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     first = client.post(f"/v1/sessions/{created['id']}/segment")
@@ -308,13 +352,17 @@ def test_segment_rate_limit_is_tracked_per_user_not_globally_i3():
     objects = FakeObjectStore()
     participant_id = _register_participant(store, owner="clinician-a")
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     limiter = InProcessRateLimiter(limit_per_hour=1)  # one instance, so hits actually accumulate
     app.dependency_overrides[get_rate_limiter] = lambda: limiter
 
     owner_client = _client_as(CLINICIAN_A, store, objects)
     created = owner_client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
     owner_client.post(f"/v1/sessions/{created['id']}/segment")  # consumes clinician-a's quota
 
@@ -340,11 +388,15 @@ def _segmented_session(
     STDUP bout, at 0.5 mean confidence (flagged: low_confidence, since 0.5 < the 0.60 default)."""
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
 
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
     segmentation = client.post(f"/v1/sessions/{created['id']}/segment").json()
     return client, created["id"], segmentation
@@ -468,10 +520,14 @@ def test_corrections_are_refused_before_segmentation_exists():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     response = client.patch(
@@ -514,10 +570,14 @@ def test_approve_requires_segmentation_first():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     response = client.post(f"/v1/sessions/{created['id']}/approve")
@@ -555,10 +615,14 @@ def test_metrics_are_refused_before_segmentation():
     objects = FakeObjectStore()
     participant_id = _register_participant(store)
     _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
-    objects.put("session/p1/one.csv", _session_csv())
+    objects.put(_object("session", participant_id, "one"), _session_csv())
     client = _client_as(CLINICIAN_A, store, objects)
     created = client.post(
-        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+        "/v1/sessions",
+        json={
+            "participant_id": participant_id,
+            "object_name": _object("session", participant_id, "one"),
+        },
     ).json()
 
     response = client.get(f"/v1/sessions/{created['id']}/metrics")

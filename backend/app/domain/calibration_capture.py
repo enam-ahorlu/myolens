@@ -17,13 +17,13 @@ from every block are pooled per task for sufficiency counting.
 
 from __future__ import annotations
 
-import io
 import itertools
 from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
 
+from app.config import get_settings
+from app.domain.csv_upload import read_upload_frame
 from app.domain.features import extract_freq72
 from app.domain.montage import MONTAGE, validate_montage
 from app.domain.normalisation import zscore_features
@@ -61,10 +61,7 @@ def parse_calibration_csv(csv_bytes: bytes) -> list[TaskBlock]:
     if no ``label`` column is present -- both are upload defects a clinician can fix, not
     programming errors, so they surface as the same 409 the session-upload path uses.
     """
-    try:
-        frame = pd.read_csv(io.BytesIO(csv_bytes))
-    except Exception as exc:
-        raise MontageRejected([{"reason": "unparseable_csv", "detail": str(exc)}]) from exc
+    frame = read_upload_frame(csv_bytes, get_settings().max_upload_bytes)
 
     # The upload also carries a leading `Time` column and a trailing `label` column (see the
     # module docstring); the montage contract itself only governs the nine channel columns

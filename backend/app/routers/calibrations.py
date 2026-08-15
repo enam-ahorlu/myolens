@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.adapters.firestore_repo import COLLECTIONS, DocumentStore, get_document_store
 from app.adapters.storage import ObjectStore, get_object_store
@@ -38,15 +38,20 @@ from app.domain.calibration_record import (
     new_calibration_record,
 )
 from app.domain.ood_guard import get_ood_stats
-from app.domain.ownership import load_owned_participant
+from app.domain.ownership import load_owned_participant, verify_upload_object
 from app.errors import NotCalibrated, OutOfDistribution
 
 router = APIRouter(tags=["calibrations"])
 
 
 class CalibrationCreate(BaseModel):
-    participant_id: str
-    object_name: str  # returned by POST /v1/uploads/sign, now populated in the bucket
+    #: Constrained for the same reason as SignRequest's: it is compared against the object
+    #: name's own participant segment, and an unconstrained string there would make that
+    #: comparison meaningless.
+    participant_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    #: Returned by POST /v1/uploads/sign. Verified -- shape, minting clinician, participant and
+    #: byte size -- by verify_upload_object before anything is read from the bucket.
+    object_name: str = Field(min_length=1, max_length=512)
 
 
 class TaskCalibrationOut(BaseModel):
@@ -120,6 +125,9 @@ def create_calibration(
     participant = load_owned_participant(store, user, body.participant_id)
     settings = get_settings()
 
+    # C3/C1: the object must be one this caller was given, for this participant, and within the
+    # byte ceiling -- all established before a single byte is downloaded.
+    verify_upload_object(objects, user, body.object_name, body.participant_id, "calibration")
     csv_bytes = objects.read_bytes(body.object_name)
     blocks = parse_calibration_csv(csv_bytes)
     capture = analyse_capture(blocks)

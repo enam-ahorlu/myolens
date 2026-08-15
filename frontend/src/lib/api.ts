@@ -321,6 +321,13 @@ export const api = {
 
   // ---- Uploads (ADR-002) ------------------------------------------------------------------
 
+  // The browser's `File.type` is not trustworthy for this decision. Windows with Excel
+  // installed reports a plain .csv as "application/vnd.ms-excel", and some browsers report an
+  // empty string for .csv.gz -- both of which the API's content-type allow-list rejects. The
+  // file extension is what we actually know, so it is what decides.
+  contentTypeFor: (fileName: string): string =>
+    /\.gz$/i.test(fileName) ? "application/gzip" : "text/csv",
+
   signUpload: (kind: UploadKind, participantId: string, contentType = "text/csv") =>
     request<SignUploadResponse>("/v1/uploads/sign", {
       method: "POST",

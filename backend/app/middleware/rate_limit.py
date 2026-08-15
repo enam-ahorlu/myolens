@@ -15,31 +15,60 @@ from app.config import get_settings
 
 
 class InProcessRateLimiter:
-    """Sliding-window rate limiter, per user, held in process memory."""
+    """Sliding-window rate limiter, per user *per bucket*, held in process memory.
 
-    def __init__(self, limit_per_hour: int) -> None:
+    Buckets exist because the routes worth limiting are not equally expensive and must not share
+    a quota. Segmentation is the costly one (I3) and gets the tight ceiling; registering a
+    recording is cheaper but commits the container to a download and a parse; minting a signed
+    URL is nearly free server-side but authorises a bucket write. Putting all three on one
+    counter would mean a clinician who uploaded a lot of recordings could no longer segment any
+    of them, which is the wrong failure.
+    """
+
+    def __init__(self, limit_per_hour: int, limits: dict[str, int] | None = None) -> None:
         self.limit = limit_per_hour
         self.window_seconds = 3600
-        self._hits: dict[str, deque[float]] = defaultdict(deque)
+        self._limits = limits or {}
+        self._hits: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 
-    def check(self, user_id: str, now: float | None = None) -> tuple[bool, int]:
+    def limit_for(self, bucket: str) -> int:
+        return self._limits.get(bucket, self.limit)
+
+    def check(
+        self, user_id: str, bucket: str = "segment", now: float | None = None
+    ) -> tuple[bool, int]:
         """Return ``(allowed, remaining)`` and record the hit when allowed."""
         current = time.monotonic() if now is None else now
-        hits = self._hits[user_id]
+        limit = self.limit_for(bucket)
+        hits = self._hits[(bucket, user_id)]
         cutoff = current - self.window_seconds
         while hits and hits[0] <= cutoff:
             hits.popleft()
-        if len(hits) >= self.limit:
+        if len(hits) >= limit:
             return False, 0
         hits.append(current)
-        return True, self.limit - len(hits)
+        return True, limit - len(hits)
+
+
+#: Bucket names, so a typo is an import error rather than a silently separate quota.
+BUCKET_SEGMENT = "segment"
+BUCKET_SESSION_CREATE = "session_create"
+BUCKET_UPLOAD_SIGN = "upload_sign"
 
 
 @lru_cache(maxsize=1)
 def get_rate_limiter() -> InProcessRateLimiter:
     """Process-wide singleton (I3), overridable in tests via FastAPI's dependency-override
     mechanism -- the same discipline ``get_document_store``/``get_object_store`` use."""
-    return InProcessRateLimiter(limit_per_hour=get_settings().rate_limit_per_hour)
+    settings = get_settings()
+    return InProcessRateLimiter(
+        limit_per_hour=settings.rate_limit_per_hour,
+        limits={
+            BUCKET_SEGMENT: settings.rate_limit_per_hour,
+            BUCKET_SESSION_CREATE: settings.session_create_rate_limit_per_hour,
+            BUCKET_UPLOAD_SIGN: settings.upload_sign_rate_limit_per_hour,
+        },
+    )
 
 
 # TODO(TD-07): this limiter is per process, and Cloud Run runs up to three instances.
