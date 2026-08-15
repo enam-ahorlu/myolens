@@ -18,8 +18,8 @@ activation and co-activation metrics.
 
 It is written for the examiner, for a clinical reader evaluating whether the system is safe to
 use, and for the maintainer who will extend it. Section 5 is the one to read first: every
-functional requirement is traced to a measurement, and most of those measurements are from the
-author's own thesis.
+functional requirement is traced to a measurement, and most of those measurements are from my
+own thesis.
 
 ### 1.2 Scope of the product
 
@@ -62,7 +62,7 @@ clinic would actually record is unknown rather than merely small. And a metric c
 unreviewed segmentation is *unfalsifiable by the person reading it*. Nothing in a `%CAL` figure
 reveals which bouts produced it, so a reader has no way to notice that it is wrong.
 
-### 1.4 Relationship to the author's thesis, and its limits
+### 1.4 Relationship to my thesis, and its limits
 
 The classification models are prior work, disclosed in `DECLARATION.md`. The thesis is a
 **prosthetic-control** thesis, and MyoLens is explicitly not a control system. What authorises
@@ -73,13 +73,13 @@ this application is §5.8.1 of that thesis, verbatim:
 > enough, especially once temporal smoothing or confidence thresholds are added to reject
 > low-certainty predictions."*
 
-MyoLens is that application, at that accuracy, and it exceeds the stated threshold rather than
+MyoLens is that application, at that accuracy, and it exceeds the stated threshold instead of
 merely meeting it: §5.8.1 conditions its claim on "around 80%", and the serving ensemble measures
 0.858.
 
 It implements the first of the two named mechanisms literally, temporal smoothing (FR-06) as a
 5-window majority vote followed by per-class minimum dwell. **The second it substitutes rather
-than implements, and the difference is stated here rather than glossed.** §5.8.1 contemplates
+than implements, and the difference is stated here.** §5.8.1 contemplates
 confidence thresholds that *reject* low-certainty predictions automatically; MyoLens instead routes
 them to a person (FR-07, E2) and computes nothing at all until that person approves (FR-08).
 Automatic rejection would silently discard the windows the model finds hardest, which in this
@@ -368,7 +368,7 @@ D6 therefore buys a 3.7× increase in bouts a reviewer can accept unedited, and 
 sevenths of the review workload, for two tenths of a percentage point of window accuracy. That
 price is stated because the claim is only falsifiable if it is: on one of the three subjects
 (Sub10) smoothing cost 11 pp of window accuracy while still improving bout structure, and the
-per-subject table records it rather than hiding it inside the pooled figure.
+per-subject table records it instead of folding it into the pooled figure.
 
 **Bout purity is deliberately not among these metrics.** With one bout per run of equal labels it
 reduces arithmetically to window accuracy, so it would restate the thesis's own measurement while
@@ -506,7 +506,7 @@ If the schedule collapses, these survive: **C4** out-of-distribution guard · **
 validation · **E7** approval gate · **H3** audit log · **F3** intended-use banner.
 
 Everything else is negotiable under the de-scope ladder. These five are what make the system
-defensible rather than merely demonstrable, and they are fixed before the ladder is priced
+defensible and not merely demonstrable, and they are fixed before the ladder is priced
 precisely so that a schedule overrun cannot quietly become an ethical one.
 
 ---

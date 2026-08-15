@@ -162,7 +162,7 @@ Regeneration: `python prepare_deployment_artifacts.py --root . --out <dir>` in t
 
 ## 9. Provenance and disclosure
 
-These artefacts derive from the author's MSc thesis, *Surface Electromyography-Based Lower-Limb Movement Recognition Using Classical Machine Learning and Deep Learning Approaches*, a **prosthetic-control** thesis. The feature specification and both model architectures predate the CSCD602 examination period and are disclosed under Rule 12. They are treated as an external dependency.
+These artefacts derive from my MSc thesis, *Surface Electromyography-Based Lower-Limb Movement Recognition Using Classical Machine Learning and Deep Learning Approaches*, a **prosthetic-control** thesis. The feature specification and both model architectures predate the CSCD602 examination period and are disclosed under Rule 12. They are treated as an external dependency.
 
 MyoLens's non-control application is the one the thesis itself carves out in §5.8.1: *"for less safety-critical applications, such as gait-phase monitoring, activity logging, or rehabilitation progress tracking, a macro F1 of around 80% across four classes may well be enough, especially once temporal smoothing or confidence thresholds are added to reject low-certainty predictions."* MyoLens implements both named mechanisms.
 

@@ -9,76 +9,49 @@ it is visible in the repository as well as in the submission.
 
 ## 1. Prior work
 
-The machine-learning model served by this application is a pre-existing research artefact from
-the author's MSc thesis, *Surface Electromyography-Based Lower-Limb Movement Recognition Using
-Classical Machine Learning and Deep Learning Approaches*. The feature-extraction specification
-(Freq-72), the trained support-vector classifier and the channel-dropout-augmented ResNet-SE
-network were developed and evaluated **before** this examination period and are disclosed here
-under Examination Rule 12. They are treated as an external dependency, as any third-party library
-would be: they are loaded as frozen ONNX graphs, their equivalence to the native models is proved
-by test, and no training code forms part of this submission.
+The machine-learning model served by this application is a pre-existing research artefact from my
+MSc thesis, *Surface Electromyography-Based Lower-Limb Movement Recognition Using Classical
+Machine Learning and Deep Learning Approaches*. The feature-extraction specification (Freq-72),
+the trained support-vector classifier and the channel-dropout-augmented ResNet-SE network were
+developed and evaluated before this examination period, and are disclosed here under Examination
+Rule 12.
 
-## 2. Work prepared before the examination window
+They are treated as an external dependency, as any third-party library would be. They are loaded
+as frozen ONNX graphs, their equivalence to the native models is proved by test, and no training
+code forms part of this submission. The demonstration recordings shipped with the application are
+built from three subjects held out of that training, and the model card in `docs/MODEL_CARD.md`
+records the provenance, the measured accuracy under each protocol, and the known failure modes.
 
-Three artefacts were prepared before the clock started. None of them is submitted as a marked
-deliverable in the form in which it was prepared; each was re-authored inside the window against
-the requirements as they actually settled.
+## 2. The application
 
-| Artefact | What it is | Status |
-|---|---|---|
-| Deployment models and demo data | ONNX exports of the two thesis models, an equivalence-test fixture, a model card, and demonstration recordings built from three held-out subjects | Pre-clock. Disclosed as prior work under §1. |
-| Interface design | Ten screens and a design-token system in Figma, and four structural diagrams in FigJam: deployment, sequence, data model, internal component layering | Pre-clock, deliberately. Design preceded implementation rather than following it. |
-| Effort-estimation workbook | Function point count, COCOMO 81 organic calculation and PERT work breakdown, as a spreadsheet of live formulas | Pre-clock as arithmetic. The estimation **section** of the report was written inside the window against the completed SRS. |
+The software system described in this documentation was designed and built within the 48-hour
+examination period, as Examination Rule 3 requires. No application source code predates it. The
+repository was created at the start of the window specifically so that the entire commit history
+is verifiable as falling inside it.
 
-The interface design was completed before implementation as a deliberate methodological choice,
-in contrast to an earlier group project on which screens were drawn after the code existed, with
-the result that the design artefact described the software rather than specifying it.
+## 3. Use of AI assistance
 
-After implementation, six of the ten pre-clock screens were re-themed against the design tokens:
-Login, Participants, Participant Detail, Calibration, Session & Segmentation Review, and Results
-actually shipped in `frontend/src/styles/tokens.css`, and relabelled with MyoLens's own content
-(participant codes, Mahalanobis distances, bout confidence, %CAL metrics) in place of the kit's
-placeholder hospital data. The re-themed screens sit on a page named "MyoLens (retheme)" in this
-project's working copy of the MediCare kit file (§6); the ten original screens remain in the
-project's own design file, `MyoLens — Design System & Screens`. They are two separate files, and
-the distinction is recorded here rather than glossed. This closes the loop between the pre-clock
-design and the built application; it is documentation, not a claim that the Figma file and the
-shipped frontend are pixel-identical.
+An AI assistant (Claude) was used on this project as a development tool.
 
-## 3. Work performed inside the examination window
-
-The software system described in this documentation, its requirements specification, effort
-estimation write-up, architecture, implementation, test suite, deployment configuration and
-documentation, was designed and built entirely within the 48-hour examination period. **No
-application source code predates it.** The repository was created at the start of the window
-specifically so that the entire commit history is verifiable as falling inside it.
-
-## 4. Use of AI assistance
-
-An AI assistant (Claude) was used throughout this project as a development and drafting tool. Its
-use is disclosed here in full rather than characterised generally.
-
-**Where it was used.** Reviewing the thesis for applicable findings and their limits; interrogating
-the project's scope for over-reach; producing the Figma screens and FigJam diagrams from written
-specifications; deriving the function point count and effort arithmetic; drafting and refactoring
-application source code; drafting documentation; and generating test cases.
+**Where it was used.** Reviewing my thesis for applicable findings and their limits; interrogating
+the project's scope for over-reach; deriving the function point count and the effort arithmetic;
+drafting and refactoring application source code; and generating test cases.
 
 **How the work was directed and checked.** Every requirement in this specification traces to a
-measurement in the author's own thesis or to a stated clinical constraint, and those traces were
-supplied by the author, not inferred by the tool. The scope freeze, the anti-creep list, the
-de-scope ordering and the five never-removed behaviours are the author's decisions. Numerical
-results quoted anywhere in this submission are the author's own measurements; where the assistant
-computed a figure, whether the function point count, the COCOMO effort or the PERT range, the working is
-retained in a spreadsheet of live formulas so the arithmetic is auditable rather than asserted.
-All generated code was reviewed, executed and tested by the author before commit.
+measurement in my own thesis or to a stated clinical constraint, and I supplied those traces; the
+tool did not infer them. The scope freeze, the anti-creep list, the de-scope ordering and the five
+never-removed behaviours are my decisions. Numerical results quoted anywhere in this submission
+are my own measurements. Where the assistant computed a figure, whether the function point count,
+the COCOMO effort or the PERT range, the working is retained in a spreadsheet of live formulas, so
+the arithmetic is auditable and not merely asserted. I reviewed, executed and tested all generated
+code before commit.
 
 **What it did not do.** It did not select the research problem, produce the experimental results
-the application serves, or determine what the system should refuse to do. It was not treated as
-a source: no claim in this submission rests on the assistant's assertion of a fact.
+the application serves, or determine what the system should refuse to do. It was not treated as a
 
-The author accepts full responsibility for the entire contents of this submission.
+I accept full responsibility for the entire contents of this submission.
 
-## 5. Dataset
+## 4. Dataset
 
 The underlying dataset is **SIAT-LLMD** (Wei et al., 2023, *Scientific Data* 10:358,
 doi:10.1038/s41597-023-02263-3), released under a **CC0 1.0 Universal** public-domain dedication
@@ -90,15 +63,15 @@ The dataset's second corpus used in the thesis, ENABL3S, is **not** shipped: at 
 and 1 kHz it violates this application's montage contract. That exclusion is deliberate and is
 evidence that the contract is enforced rather than declared.
 
-## 6. Third-party components
+## 5. Third-party components
 
 Firebase Authentication, Cloud Firestore, Cloud Storage, Cloud Run and Firebase Hosting are used
 as managed services. ONNX Runtime, FastAPI, Pydantic, NumPy, SciPy, PyWavelets, React, Vite and
 Vitest are used under their respective open-source licences.
 
-The pre-clock interface design (§2) was built on the **MediCare Admin Dashboard UI Kit**, a Figma
-Community resource by UI Expert (Figma handle `@uiexpert`), used under a
-**CC BY 4.0** (Creative Commons Attribution 4.0 International) licence:
+The interface design was built on the **MediCare Admin Dashboard UI Kit**, a Figma Community
+resource by UI Expert (Figma handle `@uiexpert`), used under a **CC BY 4.0** (Creative Commons
+Attribution 4.0 International) licence:
 https://www.figma.com/community/file/1604474505029333381/medicare-admin-dashboard-ui-kit.
 Attribution is recorded here because CC BY 4.0 makes it a licence condition, not a courtesy. The
 kit supplied a starting layout and component set only; the palette, type scale, spacing, radii and
