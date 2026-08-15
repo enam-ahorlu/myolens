@@ -1,0 +1,28 @@
+sequenceDiagram
+    title Session upload, segmentation, review and approval
+    participant Clinician
+    participant WebApp
+    participant API
+    participant CloudStorage
+    participant ModelRuntime
+    participant Firestore
+
+    Clinician->>WebApp: Choose session recording
+    WebApp->>API: POST /uploads/sign
+    API-->>WebApp: V4 signed URL
+    WebApp->>CloudStorage: PUT gzipped CSV
+    WebApp->>API: POST /sessions with object name
+    API->>CloudStorage: Fetch object, validate montage
+    API-->>WebApp: 201 created, or 422 montage rejected
+    WebApp->>API: POST /sessions/segment
+    API->>ModelRuntime: Freq-72, session z-score, ONNX soft vote
+    ModelRuntime-->>API: Per-window probabilities
+    API->>Firestore: Write bouts, flags, model provenance
+    API-->>WebApp: Bouts ordered ascending by confidence
+    Clinician->>WebApp: Relabel, split, merge or exclude a bout
+    WebApp->>API: PATCH /bouts
+    API->>Firestore: Update bout, append audit entry
+    Clinician->>WebApp: Approve segmentation
+    WebApp->>API: POST /sessions/approve
+    API->>Firestore: Compute and write metrics document
+    API-->>WebApp: Metrics unlocked

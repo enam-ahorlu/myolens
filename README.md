@@ -59,12 +59,19 @@ seam is why the SVM-only fallback is a config change rather than a rewrite.
 ## Repository layout
 
 ```
-backend/     FastAPI service, domain logic, ONNX serving boundary, pytest suite
-frontend/    React 19 + Vite + TypeScript client
-docs/        Declaration, technical-debt register, scope-change log, ADRs
-scripts/     CI gates, including the SATD <-> register consistency check
-.github/     Actions workflows
+backend/         FastAPI service, domain logic, ONNX serving boundary, pytest suite
+frontend/        React 19 + Vite + TypeScript client
+design/          Design and UML records; design/mermaid/ holds the diagram sources
+docs/            Declaration, SRS, technical-debt register, scope-change log, ADRs,
+                 the effort-estimation workbook, and docs/diagrams/ (rendered SVGs)
+firestore/       Security rules and their emulator-backed test suite
+scripts/         CI gates, the account/seed tooling, and the demo-data rebuild
+.github/         Actions workflows
 ```
+
+Every diagram is committed twice over: as Mermaid source under `design/mermaid/` and as a
+rendered SVG under `docs/diagrams/`, so the picture in the report and the source in the
+repository cannot drift apart. `design/UML_RECORD.md` §9 gives the regeneration command.
 
 ## Operating a deployment
 

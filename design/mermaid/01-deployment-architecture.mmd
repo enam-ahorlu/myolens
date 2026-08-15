@@ -1,0 +1,29 @@
+flowchart LR
+    subgraph client ["Clinician Workstation"]
+        browser["Clinician Browser - React 19 SPA"]
+    end
+    subgraph gateway ["Edge"]
+        hosting["Firebase Hosting"]
+        uploadEndpoint["Cloud Storage V4 Signed URL Endpoint"]
+        runEndpoint["Cloud Run HTTPS Endpoint"]
+    end
+    subgraph service ["Application Layer"]
+        api["FastAPI Analysis Service"]
+    end
+    subgraph datastore ["Managed Data"]
+        firestore["Cloud Firestore"]
+        storage["Cloud Storage Bucket"]
+    end
+    subgraph external ["Managed Platform Services"]
+        fbAuth["Firebase Auth"]
+        ghActions["GitHub Actions CI CD"]
+    end
+
+    browser -->|"Loads SPA bundle"| hosting
+    browser -->|"PUT session CSV direct to bucket"| uploadEndpoint
+    browser -->|"HTTPS with Firebase ID token"| runEndpoint
+    runEndpoint -->|"Routes /v1"| api
+    api -->|"Participants, bouts, metrics, audit"| firestore
+    api -->|"Mints URLs, reads CSV, writes windows"| storage
+    api -.->|"Firebase Auth: Verify ID token"| fbAuth
+    api -.->|"GitHub Actions: Build and deploy revision"| ghActions

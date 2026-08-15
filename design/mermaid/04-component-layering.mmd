@@ -1,0 +1,70 @@
+flowchart LR
+    spa[/"React 19 SPA"/]
+
+    subgraph routers ["FastAPI Routers"]
+        calibRoute["Calibration routes"]
+        sessionRoute["Session routes"]
+        reviewRoute["Bout and approval routes"]
+        registryRoute["Model and health routes"]
+    end
+
+    subgraph domain ["Domain Services"]
+        calibSvc["Calibration service"]
+        segSvc["Segmentation service"]
+        smoother["Smoothing and bout builder"]
+        boutSvc["Bout correction service"]
+        metricSvc["Metrics service"]
+        auditSvc["Audit service"]
+        registrySvc["Model registry service"]
+    end
+
+    subgraph serving ["Model-Serving Boundary"]
+        predictor{{"Predictor interface"}}
+        svmOnly[["SVM only"]]
+        ensemble[["SVM plus ResNet soft vote"]]
+    end
+
+    subgraph adapters ["Adapters"]
+        fsRepo["Firestore repository"]
+        objStore["Storage adapter"]
+        onnxAdapter["ONNX runtime adapter"]
+    end
+
+    firestore[("Cloud Firestore")]
+    storage[("Cloud Storage")]
+    artefacts[("ONNX artefacts")]
+
+    spa --> calibRoute
+    spa --> sessionRoute
+    spa --> reviewRoute
+    spa --> registryRoute
+    calibRoute --> calibSvc
+    sessionRoute --> segSvc
+    reviewRoute --> boutSvc
+    reviewRoute -->|"Approve"| metricSvc
+    registryRoute --> registrySvc
+    calibSvc -->|"OOD guard, percent CAL"| fsRepo
+    calibSvc --> objStore
+    segSvc -->|"Predict windows"| predictor
+    predictor -.->|"Config: svm only"| svmOnly
+    predictor -.->|"Config: ensemble"| ensemble
+    svmOnly --> onnxAdapter
+    ensemble --> onnxAdapter
+    onnxAdapter -->|"Loads frozen graphs"| artefacts
+    segSvc -->|"Probabilities"| smoother
+    segSvc --> objStore
+    smoother -->|"Bouts and flags"| fsRepo
+    boutSvc --> fsRepo
+    metricSvc -->|"Approved segmentation only"| fsRepo
+    calibSvc --> auditSvc
+    boutSvc --> auditSvc
+    metricSvc --> auditSvc
+    auditSvc --> fsRepo
+    registrySvc --> fsRepo
+    fsRepo --> firestore
+    objStore --> storage
+
+    style routers fill:#C2E5FF,stroke:#3DADFF
+    style domain fill:#CDF4D3,stroke:#66D575
+    style serving fill:#DCCCFF,stroke:#874FFF
+    style adapters fill:#FFE0C2,stroke:#FF9E42

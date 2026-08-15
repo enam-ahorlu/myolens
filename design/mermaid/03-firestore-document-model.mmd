@@ -1,0 +1,98 @@
+erDiagram
+    USER ||--o{ PARTICIPANT : creates
+    USER ||--o{ AUDIT : records
+    PARTICIPANT ||--o{ CALIBRATION : has
+    PARTICIPANT ||--o{ SESSION : has
+    CALIBRATION ||..o{ SESSION : normalises
+    SESSION ||--|{ BOUT : contains
+    SESSION ||--o| METRICS : yields
+    MODEL ||..o{ SESSION : segments
+
+    USER {
+        string uid PK "Firebase Auth uid"
+        string email
+        string role "clinician or admin, a custom claim"
+    }
+
+    PARTICIPANT {
+        string id PK
+        string code UK "pseudonymous, never a name (B1)"
+        string ageBand "banded, not a date of birth"
+        string sex
+        string affectedSide "left or right, unilateral montage"
+        string notes
+        string createdBy FK "USER.uid, the A3 ownership field"
+        timestamp createdAt
+        timestamp deletedAt "soft delete, retains the audit trail (B2)"
+        string difficultyBand "predicted from the OOD distance (B4)"
+    }
+
+    CALIBRATION {
+        string id PK
+        string participantId FK
+        int version "supersedes, never overwrites (C5)"
+        string sourceObject
+        map perTask "window and block counts per task (C2)"
+        array envelopePeak "nine values, the percent CAL reference (C3)"
+        float mahalanobis "distance to the training pool (C4)"
+        string difficultyBand
+        bool oodFlag
+        bool active
+        string createdBy FK
+        timestamp createdAt
+    }
+
+    SESSION {
+        string id PK
+        string participantId FK
+        string sourceObject "the bucket object, bound to its minting clinician"
+        int sampleCount
+        float durationSeconds "capped at ten minutes (D2)"
+        string status "uploaded, segmented, approved"
+        string modelVersion "provenance, per inference (H2)"
+        string modelHash
+        int calibrationVersion
+        int windowCount
+        string createdBy FK
+        timestamp createdAt
+    }
+
+    BOUT {
+        string id PK
+        string sessionId FK "how the rules resolve ownership"
+        string task "one of the four frozen classes"
+        int startWindow
+        int endWindow
+        float meanConfidence
+        bool flagged "surfaced first for review (D8, E2)"
+        array flagReasons
+        bool excluded "kept in the record, out of the metrics (E6)"
+        string exclusionReason
+        bool corrected
+        string originalTask "what the model first said; set once"
+    }
+
+    METRICS {
+        string sessionId PK "one document, computed only after approval (E7, F1)"
+        array tasks "per task amplitude, duty cycle, CCI"
+        float correctionRate
+    }
+
+    MODEL {
+        string version PK
+        string sha256 "artefact hash"
+        string trainingProtocol
+        float macroF1Transductive "0.858, the regime named (FR-09)"
+        float macroF1Causal "0.817, a different regime"
+    }
+
+    AUDIT {
+        string id PK
+        string actor FK "USER.uid"
+        string action
+        string targetType
+        string targetId
+        map before "client-immutable, not immutable (H3, TD-08)"
+        map after
+        timestamp at
+    }

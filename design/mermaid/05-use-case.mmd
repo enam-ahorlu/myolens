@@ -1,0 +1,60 @@
+flowchart TB
+    clinician(["Clinician<br/>(researcher / physiotherapist)"])
+    admin(["Laboratory administrator"])
+    participant_actor(["Participant<br/>(indirect — never uses the system)"])
+
+    subgraph system["MyoLens — a research and clinical-education tool. Not a medical device."]
+        direction LR
+        signin(["Sign in"])
+        register(["Register participant"])
+        manage(["Manage participant record"])
+        calibrate(["Upload calibration capture"])
+        upload(["Upload session recording"])
+        segment(["Run automatic segmentation"])
+        review(["Review and correct segmentation"])
+        approve(["Approve segmentation"])
+        metrics(["View task-conditioned metrics"])
+        export(["Export PDF report"])
+        modelcard(["Read the model card"])
+        roles(["Set clinician roles"])
+
+        subgraph guards["Included behaviours that are never removed (SRS §4.4)"]
+            direction LR
+            validate(["Validate montage"])
+            ood(["Check out-of-distribution distance"])
+            sufficiency(["Check per-task sufficiency"])
+            audit(["Record an audit entry"])
+            prioritise(["Order bouts least-certain first"])
+        end
+    end
+
+    clinician --- signin
+    clinician --- register
+    clinician --- manage
+    clinician --- calibrate
+    clinician --- upload
+    clinician --- segment
+    clinician --- review
+    clinician --- approve
+    clinician --- metrics
+    clinician --- export
+    clinician --- modelcard
+    admin --- roles
+    admin --- signin
+    participant_actor -. "represented by, never operates" .- register
+
+    calibrate -. "«include»" .-> validate
+    calibrate -. "«include»" .-> sufficiency
+    calibrate -. "«include»" .-> ood
+    upload -. "«include»" .-> validate
+    segment -. "«include»" .-> ood
+    segment -. "«include»" .-> prioritise
+    review -. "«include»" .-> audit
+    approve -. "«include»" .-> audit
+    metrics -. "«include»" .-> approve
+    export -. "«include»" .-> approve
+
+    classDef guard fill:#FEF2F2,stroke:#7F1D1D,stroke-width:2px;
+    classDef actor fill:#FFFFFF,stroke:#131619,stroke-width:2px;
+    class validate,ood,sufficiency,audit guard;
+    class clinician,admin,participant_actor actor;
