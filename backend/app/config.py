@@ -66,9 +66,7 @@ class Settings(BaseSettings):
     #: without this every browser call -- not just cross-site ones -- is blocked at the preflight
     #: OPTIONS request before it ever reaches a route handler. Local Vite dev ports are included
     #: so `npm run dev` works against a local or deployed API without extra configuration.
-    allowed_origins: str = (
-        "https://myolens.web.app,http://localhost:5173,http://127.0.0.1:5173"
-    )
+    allowed_origins: str = "https://myolens.web.app,http://localhost:5173,http://127.0.0.1:5173"
 
     onnx_intra_op_threads: int = Field(default=1, ge=1, le=1)
     onnx_inter_op_threads: int = Field(default=1, ge=1, le=1)
