@@ -199,6 +199,21 @@ export interface SegmentationOut {
   flagged_count: number;
 }
 
+// ---- Segmentation review (E3-E8) -----------------------------------------------------------
+
+export type ExclusionReason = "artefact" | "transition" | "unobserved";
+
+export type BoutCorrection =
+  | { op: "relabel"; task: string }
+  | { op: "split"; at_window: number }
+  | { op: "merge"; neighbor_bout_id: string }
+  | { op: "exclude"; reason: ExclusionReason };
+
+export interface BoutCorrectionOut {
+  bouts: BoutOut[];
+  removed_bout_ids: string[];
+}
+
 export const api = {
   listParticipants: () => request<Participant[]>("/v1/participants"),
 
@@ -266,7 +281,18 @@ export const api = {
   segmentSession: (sessionId: string) =>
     request<SegmentationOut>(`/v1/sessions/${sessionId}/segment`, { method: "POST" }),
 
-  // ---- Review, results -- request/requestBlob exported for the screens that still need the
+  // ---- Segmentation review, approval (E3-E8) ------------------------------------------------
+
+  correctBout: (sessionId: string, boutId: string, correction: BoutCorrection) =>
+    request<BoutCorrectionOut>(`/v1/sessions/${sessionId}/bouts/${boutId}`, {
+      method: "PATCH",
+      body: JSON.stringify(correction),
+    }),
+
+  approveSession: (sessionId: string) =>
+    request<SessionOut>(`/v1/sessions/${sessionId}/approve`, { method: "POST" }),
+
+  // ---- Results -- request/requestBlob exported for the screens that still need the
   // remaining frozen-surface routes (see HANDOFF item 7).
   request,
   requestBlob,
