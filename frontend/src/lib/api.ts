@@ -214,6 +214,36 @@ export interface BoutCorrectionOut {
   removed_bout_ids: string[];
 }
 
+// ---- Results: metrics (F1), export (G1) ----------------------------------------------------
+
+export interface CoContractionOut {
+  value: number | null;
+  windows_used: number;
+  windows_total: number;
+}
+
+export interface TaskMetricsOut {
+  task: string;
+  bout_count: number;
+  bout_duration_total_s: number;
+  //: 9 values, %CAL, in montage channel order -- null where the calibration channel it would be
+  // divided by produced no usable signal.
+  amp_mean: Array<number | null>;
+  amp_peak: Array<number | null>;
+  duty_cycle: number[];
+  cci_knee: CoContractionOut;
+  cci_ankle: CoContractionOut;
+  model_confidence_mean: number;
+  correction_rate_pct: number;
+}
+
+export interface SessionMetricsOut {
+  session_id: string;
+  channels: string[];
+  flagged_count: number;
+  tasks: TaskMetricsOut[];
+}
+
 export const api = {
   listParticipants: () => request<Participant[]>("/v1/participants"),
 
@@ -292,8 +322,15 @@ export const api = {
   approveSession: (sessionId: string) =>
     request<SessionOut>(`/v1/sessions/${sessionId}/approve`, { method: "POST" }),
 
-  // ---- Results -- request/requestBlob exported for the screens that still need the
-  // remaining frozen-surface routes (see HANDOFF item 7).
+  // ---- Results: metrics (F1), export (G1) ---------------------------------------------------
+
+  getSessionMetrics: (sessionId: string) =>
+    request<SessionMetricsOut>(`/v1/sessions/${sessionId}/metrics`),
+
+  exportSession: (sessionId: string) => requestBlob(`/v1/sessions/${sessionId}/export`),
+
+  // request/requestBlob exported directly in case a future screen needs a frozen-surface route
+  // not yet wrapped above.
   request,
   requestBlob,
 };

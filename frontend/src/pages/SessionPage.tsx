@@ -14,7 +14,7 @@
  * to re-fetch from.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -23,11 +23,12 @@ import {
   type BoutOut,
   type ExclusionReason,
   type SegmentationOut,
+  type SessionMetricsOut,
   type SessionOut,
 } from "../lib/api";
 import { TaskBadge } from "../components/TaskBadge";
 import { StatusChip } from "../components/StatusChip";
-import { TASKS, type Task } from "../lib/tasks";
+import { TASKS, TASK_LABEL, type Task } from "../lib/tasks";
 
 type Phase = "idle" | "signing" | "uploading" | "registering" | "segmenting" | "approving";
 
@@ -166,6 +167,140 @@ function BoutRow({
         )}
       </td>
     </tr>
+  );
+}
+
+function fmt(value: number | null, decimals = 1): string {
+  return value == null ? "—" : value.toFixed(decimals);
+}
+
+function fmtCci(cci: SessionMetricsOut["tasks"][number]["cci_knee"]): string {
+  if (cci.value == null) return `— (${cci.windows_used}/${cci.windows_total} windows)`;
+  return `${cci.value.toFixed(2)} (${cci.windows_used}/${cci.windows_total} windows)`;
+}
+
+/** Results: the §3.3 metric set (F1) plus the PDF export (G1) -- reachable only once a session
+ * is approved, since approval is the explicit gate before any metric exists (E7). */
+function ResultsSection({ sessionId }: { sessionId: string }) {
+  const [metrics, setMetrics] = useState<SessionMetricsOut | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getSessionMetrics(sessionId)
+      .then((result) => {
+        if (!cancelled) setMetrics(result);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : "Could not load metrics.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  async function handleExport() {
+    setError(null);
+    try {
+      setExporting(true);
+      const blob = await api.exportSession(sessionId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `myolens-session-${sessionId}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Export failed. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h3 className="card__title">Results</h3>
+      {error && (
+        <p role="alert" className="muted">
+          {error}
+        </p>
+      )}
+      {!metrics && !error && <p className="muted">Loading…</p>}
+      {metrics && (
+        <>
+          <p className="muted">
+            {metrics.flagged_count} bout{metrics.flagged_count === 1 ? "" : "s"} flagged ·{" "}
+            {metrics.tasks.length} task{metrics.tasks.length === 1 ? "" : "s"} with approved data
+          </p>
+          {metrics.tasks.length === 0 && (
+            <p className="muted">No task had any non-excluded bout -- nothing to report.</p>
+          )}
+          {metrics.tasks.map((task) => (
+            <div key={task.task} className="card" style={{ marginTop: "var(--space-4)" }}>
+              <h4 style={{ margin: 0 }}>
+                {isTask(task.task) ? <TaskBadge task={task.task} /> : task.task}
+                {isTask(task.task) && <span className="muted"> {TASK_LABEL[task.task]}</span>}
+              </h4>
+              <table>
+                <tbody>
+                  <tr>
+                    <th>Bouts</th>
+                    <td>
+                      {task.bout_count} · {fmt(task.bout_duration_total_s, 1)}s total
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Model confidence (pre-correction)</th>
+                    <td>{fmt(task.model_confidence_mean * 100, 0)}%</td>
+                  </tr>
+                  <tr>
+                    <th>Correction rate</th>
+                    <td>{fmt(task.correction_rate_pct, 1)}%</td>
+                  </tr>
+                  <tr>
+                    <th>CCI (knee)</th>
+                    <td>{fmtCci(task.cci_knee)}</td>
+                  </tr>
+                  <tr>
+                    <th>CCI (ankle)</th>
+                    <td>{fmtCci(task.cci_ankle)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Channel</th>
+                    <th>Amp mean (%CAL)</th>
+                    <th>Amp peak (%CAL)</th>
+                    <th>Duty cycle (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.channels.map((channel, index) => (
+                    <tr key={channel}>
+                      <td>{channel}</td>
+                      <td>{fmt(task.amp_mean[index])}</td>
+                      <td>{fmt(task.amp_peak[index])}</td>
+                      <td>{fmt(task.duty_cycle[index])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          <p>
+            <button type="button" onClick={() => void handleExport()} disabled={exporting}>
+              {exporting ? "Preparing PDF…" : "Download PDF report"}
+            </button>
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -382,13 +517,10 @@ export function SessionPage() {
               Approving locks the segmentation -- no further corrections after that (E7).
             </p>
           )}
-          {locked && (
-            <p className="muted">
-              Results (metrics, export) are not wired to a screen yet -- still API-only.
-            </p>
-          )}
         </section>
       )}
+
+      {locked && session && <ResultsSection sessionId={session.id} />}
     </div>
   );
 }

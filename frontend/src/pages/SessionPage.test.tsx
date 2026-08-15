@@ -10,6 +10,8 @@ const createSession = vi.fn();
 const segmentSession = vi.fn();
 const correctBout = vi.fn();
 const approveSession = vi.fn();
+const getSessionMetrics = vi.fn();
+const exportSession = vi.fn();
 
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
@@ -25,6 +27,8 @@ vi.mock("../lib/api", async () => {
       correctBout: (sessionId: string, boutId: string, body: unknown) =>
         correctBout(sessionId, boutId, body),
       approveSession: (sessionId: string) => approveSession(sessionId),
+      getSessionMetrics: (sessionId: string) => getSessionMetrics(sessionId),
+      exportSession: (sessionId: string) => exportSession(sessionId),
     },
   };
 });
@@ -125,6 +129,16 @@ describe("SessionPage", () => {
     segmentSession.mockReset();
     correctBout.mockReset();
     approveSession.mockReset();
+    getSessionMetrics.mockReset();
+    // Default to an empty, resolved metrics response -- most tests don't care about Results and
+    // would otherwise leave the ResultsSection's effect calling an unmocked function.
+    getSessionMetrics.mockResolvedValue({
+      session_id: "s1",
+      channels: [],
+      flagged_count: 0,
+      tasks: [],
+    });
+    exportSession.mockReset();
   });
 
   it("uploads a recording through sign -> PUT -> register, then offers segmentation", async () => {
@@ -344,5 +358,63 @@ describe("SessionPage", () => {
     expect(
       screen.queryByRole("button", { name: /approve segmentation/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("loads and shows the §3.3 metrics once approved", async () => {
+    await getToReview();
+    approveSession.mockResolvedValue({ ...TWO_BOUTS.session, status: "approved" });
+    getSessionMetrics.mockResolvedValue({
+      session_id: "s1",
+      channels: ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8", "ch9"],
+      flagged_count: 1,
+      tasks: [
+        {
+          task: "WAK",
+          bout_count: 1,
+          bout_duration_total_s: 2.0,
+          amp_mean: [10, 12, null, 8, 9, 11, 7, 6, 5],
+          amp_peak: [20, 22, null, 18, 19, 21, 17, 16, 15],
+          duty_cycle: [30, 32, 0, 28, 29, 31, 27, 26, 25],
+          cci_knee: { value: 0.42, windows_used: 6, windows_total: 8 },
+          cci_ankle: { value: null, windows_used: 0, windows_total: 8 },
+          model_confidence_mean: 0.91,
+          correction_rate_pct: 0,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /approve segmentation/i }));
+    await waitFor(() => expect(approveSession).toHaveBeenCalled());
+
+    expect(await screen.findByText(/0.42 \(6\/8 windows\)/)).toBeInTheDocument();
+    expect(screen.getByText(/— \(0\/8 windows\)/)).toBeInTheDocument();
+  });
+
+  it("downloads the PDF export via a blob URL", async () => {
+    await getToReview();
+    approveSession.mockResolvedValue({ ...TWO_BOUTS.session, status: "approved" });
+    getSessionMetrics.mockResolvedValue({
+      session_id: "s1",
+      channels: [],
+      flagged_count: 0,
+      tasks: [],
+    });
+    const blob = new Blob(["%PDF-fake"], { type: "application/pdf" });
+    exportSession.mockResolvedValue(blob);
+
+    const createObjectURL = vi.fn().mockReturnValue("blob:fake");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { ...URL, createObjectURL, revokeObjectURL });
+
+    fireEvent.click(screen.getByRole("button", { name: /approve segmentation/i }));
+    await waitFor(() => expect(approveSession).toHaveBeenCalled());
+    await screen.findByText(/no task had any non-excluded bout/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /download pdf report/i }));
+
+    await waitFor(() => expect(exportSession).toHaveBeenCalledWith("s1"));
+    expect(createObjectURL).toHaveBeenCalledWith(blob);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake");
+    vi.unstubAllGlobals();
   });
 });
