@@ -66,6 +66,28 @@ scripts/     CI gates, including the SATD <-> register consistency check
 .github/     Actions workflows
 ```
 
+## Operating a deployment
+
+There is no self-registration (an abuse surface, on the `Won't` list), so the first account has
+to come from outside the application, and an examiner handed a login to an empty system has been
+given a credential rather than a demonstration. Two scripts cover both:
+
+```bash
+# Provision an account and set its role claim. Needs Application Default Credentials
+# (gcloud auth application-default login) -- never a service-account key file.
+python scripts/bootstrap_accounts.py --project myolens --email you@example.com --role admin
+
+# Register the three held-out subjects, calibrate, upload, segment, and approve one session.
+export MYOLENS_SEED_PASSWORD=...
+python scripts/seed_demo_data.py --api-url "$API" --api-key "$WEB_API_KEY" --email demo@example.com
+```
+
+The seed script drives the deployed API over the network rather than writing to Firestore
+directly, and prints a timed, step-by-step transcript. That makes it the system-test record as
+well as the seeding tool: writing documents with the Admin SDK would be faster and would skip
+precisely the boundaries worth exercising -- authentication, ownership, montage validation, the
+out-of-distribution guard and the approval gate.
+
 ## The technical-debt gate
 
 Every debt item is tagged in source as `TODO(TD-nn)` and listed in `docs/TECHNICAL_DEBT.md`.
