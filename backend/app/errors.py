@@ -132,6 +132,43 @@ class SegmentationNotApproved(MyoLensError):
         )
 
 
+class SegmentationNotReady(MyoLensError):
+    """A bout correction or approval was attempted before ``POST /v1/sessions/{id}/segment``
+    ever ran, so there are no bouts yet to correct or approve."""
+
+    def __init__(self, session_id: str) -> None:
+        super().__init__(
+            status_code=412,
+            code=ErrorCode.PRECONDITION_FAILED,
+            message=(
+                "This session has not been segmented yet. Run automatic segmentation before "
+                "reviewing or approving it."
+            ),
+            details=[{"session_id": session_id}],
+        )
+
+
+class SegmentationLocked(MyoLensError):
+    """A bout correction, or a second approval, was attempted after E7's gate already closed.
+
+    E7 is described as an *explicit* gate specifically so a clinician's review is a bounded,
+    reviewable act — reopening bouts after approval (silently or otherwise) would let the
+    segmentation a metric was computed from drift out from under that metric without anyone
+    approving the drift.
+    """
+
+    def __init__(self, session_id: str) -> None:
+        super().__init__(
+            status_code=423,
+            code=ErrorCode.LOCKED,
+            message=(
+                "This session's segmentation has already been approved. Corrections and "
+                "re-approval are no longer permitted."
+            ),
+            details=[{"session_id": session_id}],
+        )
+
+
 class NotFound(MyoLensError):
     """No resource of this type and id exists for this caller.
 

@@ -24,6 +24,11 @@ class FakeDocumentStore:
     def update(self, collection: str, doc_id: str, data: dict[str, Any]) -> None:
         self._data.setdefault(collection, {}).setdefault(doc_id, {}).update(data)
 
+    def delete(self, collection: str, doc_id: str) -> None:
+        # Idempotent, like Firestore's own delete: removing an already-absent document is not
+        # an error.
+        self._data.get(collection, {}).pop(doc_id, None)
+
     def query(self, collection: str, **filters: Any) -> list[dict[str, Any]]:
         docs = self._data.get(collection, {}).values()
         return [

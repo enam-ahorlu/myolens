@@ -3,13 +3,14 @@
 A session is created in two stages, mirroring the calibration upload path (ADR-002): the
 browser puts the raw recording directly in the bucket, then ``POST /v1/sessions`` registers the
 object against a participant and validates it (D1-D3). ``POST /v1/sessions/{sid}/segment``
-(``app.domain.segmentation``) runs the actual pipeline and moves status from ``uploaded`` to
-``segmented``. Approval (E7, not yet implemented) will move it to ``approved``.
+(``routers.sessions``) runs the actual pipeline and moves status from ``uploaded`` to
+``segmented``. ``POST /v1/sessions/{sid}/approve`` (E7's explicit gate) moves it to ``approved``,
+after which bout corrections are refused (``errors.SegmentationLocked``).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -100,17 +101,18 @@ def mark_segmented(
     calibration_version: int,
     window_count: int,
 ) -> Session:
-    return Session(
-        id=session.id,
-        participant_id=session.participant_id,
-        created_by=session.created_by,
-        created_at=session.created_at,
-        source_object=session.source_object,
-        sample_count=session.sample_count,
-        duration_seconds=session.duration_seconds,
+    return replace(
+        session,
         status=SessionStatus.SEGMENTED,
         model_version=model_version,
         model_hash=model_hash,
         calibration_version=calibration_version,
         window_count=window_count,
     )
+
+
+def mark_approved(session: Session) -> Session:
+    """E7's explicit gate. No field beyond status changes -- who approved it and when is on the
+    audit entry ``routers/sessions.py`` writes alongside this, not duplicated onto the session
+    document itself."""
+    return replace(session, status=SessionStatus.APPROVED)

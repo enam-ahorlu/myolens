@@ -15,11 +15,20 @@ from app.config import get_settings
 
 
 class DocumentStore(Protocol):
-    """The narrow slice of a document database this application actually needs."""
+    """The narrow slice of a document database this application actually needs.
+
+    ``delete`` was added for segmentation review's bout merge (E5): merging two bouts removes
+    one of the two original documents rather than leaving an orphan behind. Every other
+    mutation in this codebase is add-or-update by design (soft-delete for participants, C5's
+    supersede-never-overwrite for calibrations); this is the one genuine case where a document
+    must actually stop existing, so the protocol grew to cover it rather than working around
+    its absence with a tombstone field.
+    """
 
     def get(self, collection: str, doc_id: str) -> dict[str, Any] | None: ...
     def set(self, collection: str, doc_id: str, data: dict[str, Any]) -> None: ...
     def update(self, collection: str, doc_id: str, data: dict[str, Any]) -> None: ...
+    def delete(self, collection: str, doc_id: str) -> None: ...
     def query(self, collection: str, **filters: Any) -> list[dict[str, Any]]: ...
 
 
@@ -64,6 +73,9 @@ class FirestoreDocumentStore:
 
     def update(self, collection: str, doc_id: str, data: dict[str, Any]) -> None:
         self._client.collection(collection).document(doc_id).update(data)
+
+    def delete(self, collection: str, doc_id: str) -> None:
+        self._client.collection(collection).document(doc_id).delete()
 
     def query(self, collection: str, **filters: Any) -> list[dict[str, Any]]:
         ref: Any = self._client.collection(collection)
