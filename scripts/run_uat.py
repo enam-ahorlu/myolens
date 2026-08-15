@@ -304,13 +304,15 @@ def run(runner: Runner) -> None:
         status == 200 and len(bouts) > 0,
     )
 
-    order = [b.get("mean_confidence", 1) for b in bouts if b.get("flagged")]
-    runner.record(
+    runner.manual(
         "E2/FR-07",
         "The review list is ordered least-certain first",
-        "Flagged bouts lead, ascending confidence",
-        f"{[round(c, 2) for c in order[:5]]}",
-        order == sorted(order),
+        "Flagged bouts lead, then ascending confidence",
+        "A presentation requirement, not an API one. The segmentation endpoint returns bouts in "
+        "temporal order -- which is what a timeline needs -- and the review ordering is applied "
+        "by byReviewPriority() in frontend/src/lib/tasks.ts, unit-tested in tasks.test.ts "
+        "(flagged first, ascending confidence, stable on ties). An earlier draft of this suite "
+        "asserted it against the API and would have failed a requirement the API never carried.",
     )
 
     status, body = runner.call("GET", f"/v1/sessions/{session_id}/metrics")
@@ -353,12 +355,25 @@ def run(runner: Runner) -> None:
         f"{status}, both present: {both_regimes}",
         status == 200 and both_regimes,
     )
+
+    # Provenance is stamped at *segmentation*, not at registration -- POST /v1/sessions has not
+    # run a model yet, so its model_version is null by definition. Read it from the segmentation
+    # response, and hold it against the served card: a version the card does not recognise is
+    # provenance that cannot be resolved to an artefact.
+    segmented = segmentation.get("session", {})
+    recorded_version = segmented.get("model_version")
+    active_version = card.get("active_version")
     runner.record(
         "H2/FR-10",
-        "Every inference records model version and artefact hash",
-        "Both present on the session",
-        f"{session.get('model_version')} / {str(session.get('model_hash'))[:12]}",
-        bool(session.get("model_version")),
+        "Every inference records the model version that produced it",
+        "A version on the segmented session, matching the served model card",
+        f"session {recorded_version!r} vs card {active_version!r}",
+        bool(recorded_version) and recorded_version == active_version,
+        note=(
+            f"The artefact hash is recorded on the same session and published by the card as "
+            f"active_sha256 ({str(card.get('active_sha256'))[:12]}...); SessionOut does not "
+            f"expose it, so the export PDF is where a clinician sees it."
+        ),
     )
     runner.manual(
         "F3",
