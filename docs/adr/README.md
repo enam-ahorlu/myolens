@@ -2,7 +2,7 @@
 
 One file per decision that was hard to make and would be expensive to reverse. Each records the
 context that forced the choice, the alternatives that were genuinely considered, and the
-consequences — including the bad ones.
+consequences, including the bad ones.
 
 A decision that had no plausible alternative is not an ADR, it is a fact. Those live in the SRS.
 

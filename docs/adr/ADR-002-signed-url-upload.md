@@ -1,4 +1,4 @@
-# ADR-002 — Upload recordings direct to Cloud Storage via V4 signed URL
+# ADR-002: Upload recordings direct to Cloud Storage via V4 signed URL
 
 **Status** Accepted · **Date** in-window, Phase 2
 
@@ -23,7 +23,7 @@ a resumption protocol inside a 48-hour budget.
 
 **Client-side gzip to squeeze under 32 MB.** Rejected as a decision that would have to be
 un-made. Gzip does compress these files four- to five-fold, which makes a ten-minute session fit
-— until someone uploads a less compressible recording, or the cap changes, and the failure
+until someone uploads a less compressible recording, or the cap changes, and the failure
 arrives in production rather than in design. Gzip is still *accepted*, as a bandwidth saving; it
 is just not load-bearing.
 

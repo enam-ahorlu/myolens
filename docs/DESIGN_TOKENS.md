@@ -19,7 +19,7 @@ the dark theme; and every layout, which comes from MyoLens's own ten screens.
 
 ## Why this kit suits this product
 
-The kit is nearly monochrome — white cards on a very light canvas, near-black text, borders
+The kit is nearly monochrome, white cards on a very light canvas, near-black text, borders
 rather than shadows, and a single restrained accent. On most products that reads as taste. Here
 it is functional: **MyoLens has four task colours that carry meaning**, and they are legible in
 proportion to how little else on screen competes for colour attention. A more colourful chrome
@@ -53,9 +53,9 @@ as the same colour.
 
 **DNS/WAK is held to a stricter floor than every other pair, and it is the strongest pair in the
 table.** That is the whole point. Stair descent is the ensemble's weakest class (F1 0.81) and its
-commonest confusion is DNS mistaken for WAK — 6.6% of descent windows, even after channel dropout
+commonest confusion is DNS mistaken for WAK. 6.6% of descent windows, even after channel dropout
 and ensembling more than halved it. A palette in which those two fills looked similar
-would hide the system's known weakness behind a colour choice — the reviewer would be least able
+would hide the system's known weakness behind a colour choice, the reviewer would be least able
 to see a distinction exactly where the model is least reliable.
 
 ### The timeline, at its faintest
@@ -79,7 +79,7 @@ words -- and a subtle gradient beats an invisible bout.
 ### What the check caught
 
 The first candidate set used violet `#6D28D9` for sit-to-stand. It passes contrast comfortably
-and looks fine. Under deuteranopia it and the walking blue collapse to a **ΔE of 0.38** — the two
+and looks fine. Under deuteranopia it and the walking blue collapse to a **ΔE of 0.38**, the two
 most frequent tasks in a session, rendered indistinguishable for roughly one man in sixteen.
 
 This was not visible by eye on a normal-vision monitor, and it would not have been found by
@@ -105,7 +105,7 @@ Rather than keep tuning hexes, the collision was removed by construction:
 
 - **Task colours are the only saturated fills in the product.** They appear on the segmentation
   timeline and on task badges, and nowhere else.
-- **Status is a chip** — a pale tint behind dark text, always with an icon and a word
+- **Status is a chip**, a pale tint behind dark text, always with an icon and a word
   ("Insufficient", "Refused", "Sufficient"). It is never a large saturated block.
 
 A burnt-orange bout block and an amber-tinted pill reading "Advisory" are not confusable objects
@@ -118,8 +118,8 @@ It is the same pattern the source kit uses, which is a reasonable sign it is the
 
 ## Type
 
-Plus Jakarta Sans, at 400 / 500 / 600 / 700. The scale is deliberately compressed — 14 px is the
-workhorse body size and 12 px carries labels — because this is a data-dense clinical tool and
+Plus Jakarta Sans, at 400 / 500 / 600 / 700. The scale is deliberately compressed. 14 px is the
+workhorse body size and 12 px carries labels, because this is a data-dense clinical tool and
 vertical space on the segmentation review screen is the scarcest resource in the product.
 
 ## What is deliberately absent

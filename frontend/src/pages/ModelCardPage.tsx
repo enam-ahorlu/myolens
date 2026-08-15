@@ -57,7 +57,7 @@ export function ModelCardPage() {
           </section>
 
           <section className="card">
-            <h3 className="card__title">Accuracy — leave-one-subject-out, 40 subjects</h3>
+            <h3 className="card__title">Accuracy: leave-one-subject-out, 40 subjects</h3>
             <table>
               <thead>
                 <tr>
@@ -88,7 +88,7 @@ export function ModelCardPage() {
           </section>
 
           <section className="card">
-            <h3 className="card__title">Held-out check — 3 subjects, indicative only</h3>
+            <h3 className="card__title">Held-out check: 3 subjects, indicative only</h3>
             <table>
               <thead>
                 <tr>
@@ -112,7 +112,7 @@ export function ModelCardPage() {
             <p className="muted">
               An independent check that the deployed artefacts behave, on three subjects withheld
               from their training set. It runs <em>higher</em> than the leave-one-subject-out
-              figure above, which is what three subjects can do — it is indicative, not a
+              figure above, which is what three subjects can do. It is indicative, and not a
               substitute for the n = 40 result.
             </p>
           </section>

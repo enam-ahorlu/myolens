@@ -93,7 +93,7 @@ def render_session_report_pdf(
         bottomMargin=18 * mm,
         leftMargin=18 * mm,
         rightMargin=18 * mm,
-        title=f"MyoLens session report — {session.id}",
+        title=f"MyoLens session report: {session.id}",
     )
 
     story: list[object] = []

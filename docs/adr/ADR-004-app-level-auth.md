@@ -1,4 +1,4 @@
-# ADR-004 — Authenticate at the application, not at the Cloud Run boundary
+# ADR-004: Authenticate at the application, not at the Cloud Run boundary
 
 **Status** Accepted · **Date** in-window, Phase 2
 

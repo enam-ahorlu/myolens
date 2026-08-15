@@ -1,6 +1,6 @@
 # Software Requirements Specification
 
-**MyoLens — task-conditioned sEMG session analysis with reviewable automatic segmentation**
+**MyoLens: task-conditioned sEMG session analysis with reviewable automatic segmentation**
 
 **Enam Ahorlu · CSCD602 Advanced Software Engineering · Individual Project Examination**
 Version 1.0 · Baselined at the scope freeze
@@ -45,7 +45,7 @@ practice, calling explicitly for "intelligent systems with warnings" and "fool-p
 Automatic classification can remove most of that manual labour. It cannot remove the clinician,
 and the reason is measurable rather than philosophical: the serving ensemble reaches a macro-F1 of
 **0.858**, which leaves roughly one window in seven carrying the wrong label before smoothing, and
-its weakest class — stair descent — sits at **F1 0.81** with a residual **6.6%** of descent windows
+its weakest class, stair descent, sits at **F1 0.81** with a residual **6.6%** of descent windows
 still read as level walking. Those figures describe *this* ensemble under *this* protocol. The
 single classical models are markedly worse on the same boundary (12.5% for the SVM) and do not
 describe what is deployed here; quoting their numbers against this system would be precisely the
@@ -59,7 +59,7 @@ agrees converts the same model from an unreliable oracle into a competent first 
 Two further reasons the human is not optional, and neither weakens if the model improves. The model
 has never been evaluated on any clinical population (CON-6), so its error rate on the people a
 clinic would actually record is unknown rather than merely small. And a metric computed from an
-unreviewed segmentation is *unfalsifiable by the person reading it* — nothing in a `%CAL` figure
+unreviewed segmentation is *unfalsifiable by the person reading it*. Nothing in a `%CAL` figure
 reveals which bouts produced it, so a reader has no way to notice that it is wrong.
 
 ### 1.4 Relationship to the author's thesis, and its limits
@@ -77,13 +77,13 @@ MyoLens is that application, at that accuracy, and it exceeds the stated thresho
 merely meeting it: §5.8.1 conditions its claim on "around 80%", and the serving ensemble measures
 0.858.
 
-It implements the first of the two named mechanisms literally — temporal smoothing, FR-06, as a
+It implements the first of the two named mechanisms literally, temporal smoothing (FR-06) as a
 5-window majority vote followed by per-class minimum dwell. **The second it substitutes rather
 than implements, and the difference is stated here rather than glossed.** §5.8.1 contemplates
 confidence thresholds that *reject* low-certainty predictions automatically; MyoLens instead routes
 them to a person (FR-07, E2) and computes nothing at all until that person approves (FR-08).
 Automatic rejection would silently discard the windows the model finds hardest, which in this
-application are disproportionately stair descent — so a resting-on-thresholds system would quietly
+application are disproportionately stair descent, so a resting-on-thresholds system would quietly
 under-report the one task a clinician is most likely to be interested in. Review discards nothing
 and spends the clinician's attention on exactly those windows. The substitution is deliberate and
 is claimed as stricter than the thesis's condition, not as identical to it.
@@ -97,7 +97,7 @@ No claim in this specification extends the thesis's findings beyond the populati
 | **Bout** | A contiguous run of windows carrying the same task label after smoothing |
 | **Window** | 480 samples (250 ms) of nine-channel signal, stepped 240 samples (125 ms) |
 | **%CAL** | Amplitude as a percentage of the participant's own peak calibration envelope |
-| **MVC** | Maximum voluntary contraction. **Not used** — see NFR-C2 |
+| **MVC** | Maximum voluntary contraction. **Not used**; see NFR-C2 |
 | **Transductive** | Normalisation statistics computed over the whole recording being analysed |
 | **Causal** | Normalisation statistics computed from past samples only |
 | **OOD** | Out of distribution, relative to the model's training population |
@@ -152,7 +152,7 @@ This statement ships in the product, on every screen and in every export.
 | Maintainer | Swap the model without rewriting the application | Model-serving boundary |
 
 The participant is an *indirect* stakeholder who never touches the software, and whose interests
-are therefore represented only by requirements someone else has to be prevented from bypassing —
+are therefore represented only by requirements someone else has to be prevented from bypassing,
 which is why B1 (no name field exists), C4 (refusal) and F3 (banner) are Must and are on the
 never-cut list.
 
@@ -223,7 +223,7 @@ this contract. That exclusion is evidence the contract is enforced rather than d
 
 ### 3.2 The class set
 
-`["DNS", "STDUP", "UPS", "WAK"]` — stair descent, sit-to-stand, stair ascent, level walking. The
+`["DNS", "STDUP", "UPS", "WAK"]`: stair descent, sit-to-stand, stair ascent, level walking. The
 order is frozen because it is the output order of both ONNX graphs. **No fifth class appears
 anywhere in the product, including in empty states.**
 
@@ -251,7 +251,7 @@ CCI = mean over qualifying windows( 2 · min(A_i, B_i) / (A_i + B_i) ) × 100
 ```
 
 A window qualifies when at least one group exceeds 15% of calibration peak. Where **no** window
-qualifies the result is **null, not zero** — at rest the ratio is still arithmetically defined and
+qualifies the result is **null, not zero**. At rest the ratio is still arithmetically defined and
 is dominated entirely by the relative size of two noise floors, so a resting limb would otherwise
 report as strongly co-contracting. Zero co-contraction is a clinical finding; no data is not.
 This edge case is a named unit test.
@@ -277,17 +277,17 @@ The centrepiece of this specification. Every row's justification is a measuremen
 | **FR-04** | Calibration shall be tracked **per task**; uncalibrated tasks are excluded from the output space rather than predicted and filtered | Functional | **Must** | Many rehabilitation participants cannot safely descend stairs | Clinical constraint; ~29 pp per-subject difficulty spread (§5.4) |
 | **FR-05** | The system shall refuse segmentation for participants beyond the OOD threshold | Functional | **Must** | Healthy-only cohort; clinical generalisation stated as unknown and critical | §5.12, §5.12.1, §6.4 |
 | **FR-06** | Per-window predictions shall be temporally smoothed: 5-window majority vote, then per-class minimum dwell | Functional | **Must** | Named thesis future work, and one of the two mechanisms §5.8.1 conditions its claim on | §5.8.1, §5.13, §2.4.1 |
-| **FR-07** | Bouts whose DNS/WAK probabilities fall within a margin, or whose mean confidence is low, shall be surfaced first for review | Functional | **Must** | Measured confusion structure — the model's specific weakness | DNS→WAK confusion 12.5% (single classical models) → **6.6%** (serving ensemble); DNS the ensemble's weakest class at **F1 0.81** |
+| **FR-07** | Bouts whose DNS/WAK probabilities fall within a margin, or whose mean confidence is low, shall be surfaced first for review | Functional | **Must** | Measured confusion structure, meaning the model's specific weakness | DNS→WAK confusion 12.5% (single classical models) → **6.6%** (serving ensemble); DNS the ensemble's weakest class at **F1 0.81** |
 | **FR-08** | No metric shall be computed or displayed before the operator approves the segmentation | Functional | **Must** | The ethical spine. Without it the tool is an oracle again | Design decision, following from FR-07's premise |
 | **FR-09** | Accuracy shall be reported with its measurement regime named | Functional | **Must** | 0.858 is transductive; 0.817 is causal and does not describe this system | §5.11, §6.5 |
 | **FR-10** | Model version, artefact hash and calibration version shall be recorded against every inference | Functional | **Must** | The deep model of record changed mid-thesis; results are only comparable when provenance is known | §5.2, §5.8 |
-| **NFR-01** | A 10-minute session shall process in ≤30 s | Performance | **Must** | Batch analysis, not a control cycle | — |
+| **NFR-01** | A 10-minute session shall process in ≤30 s | Performance | **Must** | Batch analysis, not a control cycle | n/a |
 | **NFR-02** | The serving ensemble shall exclude Random Forest | Performance | **Should** | RF dilutes the vote *and* dominates latency | SVM + ResNet-SE+CD 0.858 > four-model 0.847; RF 30.5 ms/window |
 | **NFR-03** | Normalisation statistics shall never be shared between participants or sessions | Correctness | **Must** | Between-subject shift is a location shift, not noise | Subject-identity probe 0.777 → 0.024 after per-subject normalisation |
 | **NFR-04** | No accuracy figure shall appear without its protocol | Integrity | **Should** | Better-aligned does not mean better-classifying | Class silhouette +0.023 vs −0.006 |
 
 > **On FR-01.** An earlier draft had statistics coming from a prior calibration recording. That is
-> a regime the thesis never measured and explicitly warns about — §5.12 limitation 8: *"statistics
+> a regime the thesis never measured and explicitly warns about, at §5.12 limitation 8: *"statistics
 > estimated on one session need not transfer to the next even for the same individual."* Computing
 > them from the assessment session is exactly the 0.858 condition, is legitimate for retrospective
 > batch analysis, and removes the exposure. The requirement changed because the evidence did not
@@ -318,8 +318,8 @@ MoSCoW priority in the second column. Every **Must** has a testable acceptance c
 | B3 | Per-task calibration state | Must | Four badges: calibrated / insufficient / not attempted |
 | B4 | Predicted-difficulty band from the OOD distance | Could | Three bands shown; stored alongside the realised correction rate |
 
-B4 tests a question the thesis raised and could not answer — whether subject difficulty is
-predictable — as a by-product of ordinary use. The distance is already computed for FR-05, so the
+B4 tests a question the thesis raised and could not answer, whether subject difficulty is
+predictable, as a by-product of ordinary use. The distance is already computed for FR-05, so the
 marginal cost is near zero.
 
 *Won't:* clinical history, diagnosis codes, medication, consent uploads, photographs.
@@ -331,7 +331,7 @@ marginal cost is near zero.
 | C1 | Upload a labelled calibration capture per task | Must | Non-conformant (montage mismatch or missing `label` column) → 409, `MONTAGE_REJECTED`, naming every violating field -- the same refusal D3 uses for the same failure class, deliberately, so a clinician sees one behaviour for "this recording doesn't match the montage" everywhere in the product. Accepts CSV and gzipped CSV on the same terms as D2 |
 | C2 | Per-task sufficiency: ≥20 windows across ≥3 non-contiguous blocks | Must | Both counts shown per task; both must pass |
 | C3 | Persist the per-channel peak calibration envelope as the %CAL reference | Must | One stored vector of nine values |
-| C4 | **OOD guard** — Mahalanobis distance against the pooled training distribution; above threshold, refuse | Must | Out-of-range fixture triggers refusal; asserted by test |
+| C4 | **OOD guard.** Mahalanobis distance against the pooled training distribution; above threshold, refuse | Must | Out-of-range fixture triggers refusal; asserted by test |
 | C5 | Recalibration supersedes, never overwrites | Must | Two calibrations → two records, latest active |
 
 *Won't:* live device capture, timed recording wizard, MVC protocol (CON-3).
@@ -359,10 +359,10 @@ windows, 22 true bouts, reproducible with `pytest backend/tests/test_smoothing_e
 
 | | Unsmoothed | With D6 |
 |---|---|---|
-| Bouts produced (review workload) | 130 | **17** — 86.9% fewer |
+| Bouts produced (review workload) | 130 | **17**, 86.9% fewer |
 | Fragments per true bout | 6.11 | **1.44** |
 | True bouts cleanly recovered | 3 of 22 (14%) | **11 of 22 (50%)** |
-| Window accuracy | 0.780 | 0.778 — **−0.2 pp** |
+| Window accuracy | 0.780 | 0.778, **-0.2 pp** |
 
 D6 therefore buys a 3.7× increase in bouts a reviewer can accept unedited, and removes six
 sevenths of the review workload, for two tenths of a percentage point of window accuracy. That
@@ -388,7 +388,7 @@ laboratory protocol's task ordering, not physiology).
 | E4 | Split a bout at a window boundary | Should | Two bouts, no window lost |
 | E5 | Merge with an adjacent same-label neighbour | Should | One bout, boundaries correct |
 | E6 | Exclude a bout as artefact, transition or unobserved | Must | Excluded from metrics, retained in the record |
-| E7 | **Approve segmentation** — explicit gate | Must | No metric computed or shown before approval |
+| E7 | **Approve segmentation**, an explicit gate | Must | No metric computed or shown before approval |
 | E8 | Every correction audited with before, after and actor | Must | One audit entry per operation, test-verified |
 
 E2 is the mechanism by which a 0.858 macro-F1 becomes a usable workflow. A chronological queue
@@ -445,7 +445,7 @@ would be one question away from being dismantled. Logged as TD-08 with a repayme
 > **On the three refinements above (C1, D2, I1, I3).** Each narrows or completes an already-frozen
 > control rather than adding one, which is why none appears in `SCOPE_CHANGE_LOG.md`. D2 already
 > promised "a clear rejection, not a crash", but the duration cap is expressed in samples and could
-> only be applied after the whole object had been downloaded and parsed — so the promise held for a
+> only be applied after the whole object had been downloaded and parsed, so the promise held for a
 > long recording and not for a large one. I3 already bounded "the only genuinely expensive route",
 > but the two cheaper routes that reach it were unbounded, so the ceiling could be walked around
 > rather than hit. C1's own criterion exists to make calibration and session uploads behave
@@ -454,13 +454,13 @@ would be one question away from being dismantled. Logged as TD-08 with a repayme
 > the implementation did not yet meet it. No new user-facing capability was added, and nothing was
 > de-scoped to pay for any of it.
 
-> **On E3's retrieval routes (15 Aug).** Two endpoints were added to §10 of the plan of record —
-> `GET /v1/participants/{pid}/sessions` and `GET /v1/sessions/{sid}` — and, on the same reasoning,
+> **On E3's retrieval routes (15 Aug).** Two endpoints were added to §10 of the plan of record,
+> `GET /v1/participants/{pid}/sessions` and `GET /v1/sessions/{sid}`, and on the same reasoning
 > no `SCOPE_CHANGE_LOG.md` entry was written. **E3's acceptance criterion is the single word
 > "Persists."** It did: a relabel was written to Firestore and survived. It was also unobservable
 > from anywhere, because no route returned a session or its bouts, so the criterion could not be
 > tested by any caller and a clinician who closed the tab lost the correction permanently. The
-> frozen surface already carried two GETs keyed by a session id — `.../metrics` and `.../export` —
+> frozen surface already carried two GETs keyed by a session id, `.../metrics` and `.../export`,
 > and nothing that would ever produce one, which is an internal inconsistency rather than a
 > deliberate minimum. `GET /v1/sessions/{sid}` returns the exact response body `POST .../segment`
 > already returned, and the list returns records the API was already writing; both are scoped by
@@ -476,7 +476,7 @@ reason, because an exclusion without one is an omission.
 | Excluded | Reason |
 |---|---|
 | Live BLE / streaming inference | No hardware, and the causal normaliser is a measurably different regime (−4.1 pp) |
-| Bilateral / symmetry metrics | **Physically impossible** — the montage is unilateral (CON-4) |
+| Bilateral / symmetry metrics | **Physically impossible.** The montage is unilateral (CON-4) |
 | %MVC normalisation | Maximal-effort testing contraindicated in the target populations (CON-3) |
 | Cross-session amplitude comparison | Invalid without an MVC anchor; thesis §5.12 item 8 |
 | Normative reference bands | No normative database exists for this montage |
@@ -533,7 +533,7 @@ performance." It belongs on the model card as an inherited property, not in this
 - Participants are identified by a pseudonymous code. **No name field exists**, which is a
   stronger guarantee than a policy of not filling one in.
 - Age is banded, not dated.
-- Logs carry no participant identifier — a pseudonymous code plus a session time is still a
+- Logs carry no participant identifier. A pseudonymous code plus a session time is still a
   re-identification surface.
 - Firestore rules deny cross-clinician reads and deny all client writes to the audit collection.
 - The deployment service-account key never enters the repository; `.gitignore` refuses the
@@ -549,7 +549,7 @@ and attribution is not legally required; it is given anyway as a matter of acade
 because Examination Rule 6 requires datasets to be acknowledged. 40 healthy adults, ethics
 approval **SIAT-IRB-210315-H0555**.
 
-Three subjects — 10, 13 and 22, chosen to span the measured difficulty range — were held out of
+Three subjects, 10, 13 and 22, chosen to span the measured difficulty range, were held out of
 the deployment models' training set. They serve three purposes at once: an independent validation
 set for the deployed models, realistic demonstration recordings, and an illustration of the
 per-subject difficulty spread. Held-out accuracy is reported as **indicative at n = 3, not a
@@ -565,12 +565,12 @@ test log. Verification levels:
 | Level | Coverage |
 |---|---|
 | Unit | Feature extraction against thesis reference vectors; windowing; calibration sufficiency; CCI including the null case; smoothing and dwell |
-| Integration | Signed URL → object → features → normalise → infer → smooth → bouts → approve → metrics, through the **real Firestore adapter against a locally-started emulator** — not the in-memory fake the unit suite substitutes. Also pins `firestore.rules` to reality by reading back the collections the application actually writes |
+| Integration | Signed URL → object → features → normalise → infer → smooth → bouts → approve → metrics, through the **real Firestore adapter against a locally-started emulator**, not the in-memory fake the unit suite substitutes. Also pins `firestore.rules` to reality by reading back the collections the application actually writes |
 | Model equivalence | ONNX vs native below 1e-4, both models, in the serving runtime |
-| Smoothing effect | Bout coherence with and without D6 — a number the thesis does not have. **Measured:** 130 → 17 bouts, 6.11 → 1.44 fragments per true bout, 14% → 50% cleanly recovered, at −0.2 pp window accuracy (§4.2 D) |
+| Smoothing effect | Bout coherence with and without D6, a number the thesis does not have. **Measured:** 130 → 17 bouts, 6.11 → 1.44 fragments per true bout, 14% → 50% cleanly recovered, at −0.2 pp window accuracy (§4.2 D) |
 | Rules | Cross-clinician denial; unauthenticated denial; audit update and delete denial |
 | System | The full journey against the live deployment |
-| Security | Authorisation bypass, oversized upload, malformed CSV, injection — log forging, identifiers in logs, document-path injection, report markup, and stored-payload fidelity |
+| Security | Authorisation bypass, oversized upload, malformed CSV, injection: log forging, identifiers in logs, document-path injection, report markup, and stored-payload fidelity |
 | Performance | Session processing time against the 30 s budget |
 
 ---
@@ -579,7 +579,7 @@ test log. Verification levels:
 
 This specification is baselined at version 1.0. Thereafter:
 
-1. Nothing is added unless its absence makes an already-frozen item **non-functional** — not
+1. Nothing is added unless its absence makes an already-frozen item **non-functional**, not
    incomplete, non-functional.
 2. Any addition is logged in `SCOPE_CHANGE_LOG.md` with a timestamp, the trigger, the cost, **and
    the item de-scoped to pay for it.** Additions are funded, never free.

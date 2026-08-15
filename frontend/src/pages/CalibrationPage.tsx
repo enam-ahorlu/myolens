@@ -122,7 +122,7 @@ export function CalibrationPage() {
               <>
                 {" "}
                 <span role="status" className="muted">
-                  — flagged out-of-distribution; segmentation is refused on this version
+                  · flagged out-of-distribution; segmentation is refused on this version
                 </span>
               </>
             )}
@@ -161,7 +161,7 @@ export function CalibrationPage() {
         <h3 className="card__title">Upload a new calibration capture</h3>
         <p className="muted">
           A labelled CSV: the nine montage channels plus a <code>label</code> column, with several
-          non-contiguous blocks per task. Uploading a new capture supersedes the current one — the
+          non-contiguous blocks per task. Uploading a new capture supersedes the current one. The
           previous version is kept, not deleted.
         </p>
         <form onSubmit={(event) => void handleUpload(event)}>

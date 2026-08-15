@@ -1,4 +1,4 @@
-# ADR-003 — Normalise per session, transductively, over the whole recording
+# ADR-003: Normalise per session, transductively, over the whole recording
 
 **Status** Accepted · **Date** in-window, Phase 2 · **Supersedes** an earlier draft requirement
 
@@ -7,7 +7,7 @@
 Between-subject variation in sEMG is a location shift, not noise. The thesis measured it directly:
 a probe trained to predict subject identity from raw features scored 0.777, and after per-subject
 normalisation the same probe scored **0.024**. Normalisation is not a preprocessing detail here;
-it is the single largest lever on accuracy in the whole system — worth +6.9 percentage points of
+it is the single largest lever on accuracy in the whole system, worth +6.9 percentage points of
 macro-F1 on the SVM (70.8 → 77.7, p < 0.0001, d = 1.48), replicated at +10.3 pp on a second
 corpus.
 
@@ -26,7 +26,7 @@ requirement, and it was wrong. The thesis never measured that regime, and §5.12
 against assuming it: *"statistics estimated on one session need not transfer to the next even for
 the same individual."* Shipping it would have meant quoting an accuracy figure obtained under one
 condition while operating under a different, unmeasured one. **The requirement changed because the
-evidence did not support it** — recorded here rather than quietly corrected, because the change is
+evidence did not support it**, recorded here rather than quietly corrected, because the change is
 more informative than the result.
 
 **Causal statistics from a trailing buffer.** Measured, and it costs real accuracy: 0.817 against
@@ -44,7 +44,7 @@ the whole point, and it is what lets FR-09 report 0.858 without a caveat about r
 
 **Bad, and it constrains the roadmap.** Transductive normalisation requires the whole recording up
 front, which makes streaming inference impossible without changing the regime. That is TD-02, and
-the repayment plan explicitly says a live version must quote 0.817 rather than 0.858 — because it
+the repayment plan explicitly says a live version must quote 0.817 rather than 0.858, because it
 would be a different system, measured differently.
 
 **Correctness constraint.** Statistics must never be shared between participants or between

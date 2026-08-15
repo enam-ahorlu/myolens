@@ -27,15 +27,15 @@ the requirements as they actually settled.
 | Artefact | What it is | Status |
 |---|---|---|
 | Deployment models and demo data | ONNX exports of the two thesis models, an equivalence-test fixture, a model card, and demonstration recordings built from three held-out subjects | Pre-clock. Disclosed as prior work under §1. |
-| Interface design | Ten screens and a design-token system in Figma, and four structural diagrams in FigJam — deployment, sequence, data model, internal component layering | Pre-clock, deliberately. Design preceded implementation rather than following it. |
+| Interface design | Ten screens and a design-token system in Figma, and four structural diagrams in FigJam: deployment, sequence, data model, internal component layering | Pre-clock, deliberately. Design preceded implementation rather than following it. |
 | Effort-estimation workbook | Function point count, COCOMO 81 organic calculation and PERT work breakdown, as a spreadsheet of live formulas | Pre-clock as arithmetic. The estimation **section** of the report was written inside the window against the completed SRS. |
 
 The interface design was completed before implementation as a deliberate methodological choice,
-in contrast to an earlier group project on which screens were drawn after the code existed — with
+in contrast to an earlier group project on which screens were drawn after the code existed, with
 the result that the design artefact described the software rather than specifying it.
 
-After implementation, six of the ten pre-clock screens — Login, Participants, Participant Detail,
-Calibration, Session & Segmentation Review, and Results — were re-themed against the design tokens
+After implementation, six of the ten pre-clock screens were re-themed against the design tokens:
+Login, Participants, Participant Detail, Calibration, Session & Segmentation Review, and Results
 actually shipped in `frontend/src/styles/tokens.css`, and relabelled with MyoLens's own content
 (participant codes, Mahalanobis distances, bout confidence, %CAL metrics) in place of the kit's
 placeholder hospital data. The re-themed screens sit on a page named "MyoLens (retheme)" in this
@@ -47,9 +47,9 @@ shipped frontend are pixel-identical.
 
 ## 3. Work performed inside the examination window
 
-The software system described in this documentation — its requirements specification, effort
+The software system described in this documentation, its requirements specification, effort
 estimation write-up, architecture, implementation, test suite, deployment configuration and
-documentation — was designed and built entirely within the 48-hour examination period. **No
+documentation, was designed and built entirely within the 48-hour examination period. **No
 application source code predates it.** The repository was created at the start of the window
 specifically so that the entire commit history is verifiable as falling inside it.
 
@@ -68,7 +68,7 @@ measurement in the author's own thesis or to a stated clinical constraint, and t
 supplied by the author, not inferred by the tool. The scope freeze, the anti-creep list, the
 de-scope ordering and the five never-removed behaviours are the author's decisions. Numerical
 results quoted anywhere in this submission are the author's own measurements; where the assistant
-computed a figure — the function point count, the COCOMO effort, the PERT range — the working is
+computed a figure, whether the function point count, the COCOMO effort or the PERT range, the working is
 retained in a spreadsheet of live formulas so the arithmetic is auditable rather than asserted.
 All generated code was reviewed, executed and tested by the author before commit.
 
@@ -102,5 +102,5 @@ Community resource by UI Expert (Figma handle `@uiexpert`), used under a
 https://www.figma.com/community/file/1604474505029333381/medicare-admin-dashboard-ui-kit.
 Attribution is recorded here because CC BY 4.0 makes it a licence condition, not a courtesy. The
 kit supplied a starting layout and component set only; the palette, type scale, spacing, radii and
-all other design tokens actually shipped in this application are this project's own — derived and
-verified in `scripts/verify_palette.py` and recorded in `docs/DESIGN_TOKENS.md` — not the kit's.
+all other design tokens actually shipped in this application are this project's own, derived and
+verified in `scripts/verify_palette.py` and recorded in `docs/DESIGN_TOKENS.md`, not the kit's.

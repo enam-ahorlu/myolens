@@ -36,11 +36,11 @@ are **never** removed:
 
 | | Guarantee |
 |---|---|
-| C4 | Out-of-distribution guard — segmentation is refused beyond a Mahalanobis threshold |
-| D3 | Montage validation — a non-conforming upload is rejected, never coerced |
-| E7 | Approval gate — no metric is computed or displayed before a human approves |
-| H3 | Audit log — every correction is recorded with the model's confidence at the time |
-| F3 | Intended-use banner — present on every screen and in every export |
+| C4 | Out-of-distribution guard, segmentation is refused beyond a Mahalanobis threshold |
+| D3 | Montage validation, a non-conforming upload is rejected, never coerced |
+| E7 | Approval gate, no metric is computed or displayed before a human approves |
+| H3 | Audit log, every correction is recorded with the model's confidence at the time |
+| F3 | Intended-use banner, present on every screen and in every export |
 
 ## Architecture
 

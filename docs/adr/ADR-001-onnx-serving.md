@@ -1,4 +1,4 @@
-# ADR-001 — Serve the models as frozen ONNX graphs behind an interface
+# ADR-001: Serve the models as frozen ONNX graphs behind an interface
 
 **Status** Accepted · **Date** in-window, Phase 2
 
@@ -36,7 +36,7 @@ risk than the export, with no benefit.
 is exactly one runtime to reason about, so the equivalence test is uniform across both models.
 The graph is frozen, so there is no version coupling to drift.
 
-**Bad, and paid.** Export correctness is not free — it was logged as TD-05 and rated the
+**Bad, and paid.** Export correctness is not free, it was logged as TD-05 and rated the
 register's only Critical item. It has been retired: maximum absolute delta 4.346e-07 across 200
 windows for both models, 100% argmax agreement, measured in the serving runtime, with the 1e-4
 tolerance **not** relaxed. The regression test runs in CI on every commit.
