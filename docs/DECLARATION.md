@@ -34,6 +34,14 @@ The interface design was completed before implementation as a deliberate methodo
 in contrast to an earlier group project on which screens were drawn after the code existed — with
 the result that the design artefact described the software rather than specifying it.
 
+After implementation, six of the ten pre-clock screens — Login, Participants, Participant Detail,
+Calibration, Session & Segmentation Review, and Results — were re-themed inside the same Figma
+file, on a page named "MyoLens (retheme)", against the design tokens actually shipped in
+`frontend/src/styles/tokens.css`, and relabelled with MyoLens's own content (participant codes,
+Mahalanobis distances, bout confidence, %CAL metrics) in place of the kit's placeholder hospital
+data. This closes the loop between the pre-clock design and the built application; it is
+documentation, not a claim that the Figma file and the shipped frontend are pixel-identical.
+
 ## 3. Work performed inside the examination window
 
 The software system described in this documentation — its requirements specification, effort
