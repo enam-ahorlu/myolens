@@ -9,8 +9,8 @@ end-to-end run found that a fully green pipeline had shipped a service which cou
 single upload.
 
 Each case names the requirement it discharges, states its expected result before running, and
-records what actually came back. A case that cannot be automated is reported as ``MANUAL`` with
-the reason, rather than quietly omitted -- a suite that hides what it did not check is worse than
+records what actually came back. A case that cannot be automated is reported as ``MANUAL``, with
+the reason and the place it *is* checked. A suite that hides what it did not check is worse than
 a shorter one that says so.
 
 **Usage**
@@ -37,6 +37,11 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
+# TODO(TD-09): every case here is driven from an HTTP client, so anything that only fails inside
+# a browser is invisible to this suite. Python has no same-origin policy, which is why this suite
+# passed cleanly through an outage in which no browser could upload at all, and it never opens a
+# native file dialog, which is why the pickers' accept filter went unchecked. A Playwright suite
+# covering the same journey is scheduled for v1.1.
 DEMO_DIR = Path(__file__).resolve().parent.parent / "backend" / "artifacts" / "demo"
 IDENTITY_TOOLKIT = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
 
@@ -309,10 +314,9 @@ def run(runner: Runner) -> None:
         "The review list is ordered least-certain first",
         "Flagged bouts lead, then ascending confidence",
         "A presentation requirement, not an API one. The segmentation endpoint returns bouts in "
-        "temporal order -- which is what a timeline needs -- and the review ordering is applied "
-        "by byReviewPriority() in frontend/src/lib/tasks.ts, unit-tested in tasks.test.ts "
-        "(flagged first, ascending confidence, stable on ties). An earlier draft of this suite "
-        "asserted it against the API and would have failed a requirement the API never carried.",
+        "temporal order, which is what a timeline needs. The review ordering is applied by "
+        "byReviewPriority() in frontend/src/lib/tasks.ts and unit-tested in tasks.test.ts: "
+        "flagged first, then ascending confidence, stable on ties.",
     )
 
     status, body = runner.call("GET", f"/v1/sessions/{session_id}/metrics")

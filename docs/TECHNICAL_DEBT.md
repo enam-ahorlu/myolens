@@ -17,6 +17,7 @@ it is an opinion.
 | TD-06 | Demonstration fixtures double as test fixtures, **and now as the measurement set for a reported result** | Expedient — the held-out subjects were the cheapest realistic data available | Tests may encode fixture quirks rather than requirements, and D6's published bout-coherence figures inherit any such quirk | Prudent & Inadvertent | **Scheduled** | ~~Low~~ **Medium** | v1.1, synthetic edge-case fixtures for the boundary conditions, and an independent set for any figure that is reported rather than merely asserted |
 | TD-07 | Rate limiting is in-process, not distributed | Cloud Run scales to more than one instance; a shared counter needs Firestore or Redis | The 30/user/hour limit is per instance, so the effective limit is up to 3× the stated one | Prudent & Deliberate | **Scheduled** | Medium | v1.1, token bucket in Firestore with a transactional decrement |
 | TD-08 | Audit log is client-immutable, not immutable | Firestore rules constrain clients; the Cloud Run service uses the Admin SDK and bypasses them | Server-side writes are unconstrained by rules; a compromised service could rewrite history | Prudent & Inadvertent | **Scheduled** | High | v1.1, object-versioned bucket mirror plus deny-delete IAM |
+| TD-09 | No automated browser-level test | The acceptance suite drives the API over HTTP from Python, which is fast, deterministic and free of a same-origin policy | Two production defects reached the deployment because every automated caller shared that blind spot: the bucket's missing CORS policy and the upload picker's file filter. Both were found by hand | Prudent & Inadvertent | **Scheduled** | High | v1.1, a Playwright suite in CI covering sign-in, calibration upload, segmentation, correction, approval and export against a preview deployment |
 
 ## On the classification column
 
@@ -44,6 +45,19 @@ is wrong — it is that a quirk of these three subjects would propagate into a *
 with nothing independent to catch it, and n = 3 is far too small for that to be unlikely. The
 figures are therefore reported as indicative, exactly as held-out accuracy is (SRS §6), and the
 repayment now names an independent set for anything reported rather than merely asserted.
+
+## On TD-09
+
+TD-09 was raised on 15 August, after the browser walkthrough found two defects that no automated
+caller could have found. The acceptance suite uploads from Python, and Python has no same-origin
+policy, so it passed cleanly through an outage in which no browser could upload anything at all.
+The file picker's `accept` filter is invisible to it for the same reason: nothing in the suite
+opens a native file dialog.
+
+The exposure is specific. Every requirement whose behaviour lives between the browser and an
+external service is currently verified by a person doing it once, and a person doing it once does
+not run again on the next push. The single preflight assertion added to the deploy job covers the
+one failure that actually happened, and nothing covers the class it belongs to.
 
 ## On TD-08's wording
 
