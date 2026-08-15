@@ -244,7 +244,11 @@ function ResultsSection({ sessionId }: { sessionId: string }) {
           {metrics.tasks.map((task) => (
             <div key={task.task} className="card" style={{ marginTop: "var(--space-4)" }}>
               <h4 style={{ margin: 0 }}>
-                {isTask(task.task) ? <TaskBadge task={task.task} /> : task.task}
+                {/* Abbreviated, because the full label follows it. An unabbreviated badge renders
+                    the label itself, so this heading read "Sit to stand Sit to stand" on every
+                    task card. The badge carries the colour and the code; the span carries the
+                    words -- the same pairing the bout table uses. */}
+                {isTask(task.task) ? <TaskBadge task={task.task} abbreviated /> : task.task}
                 {isTask(task.task) && <span className="muted"> {TASK_LABEL[task.task]}</span>}
               </h4>
               <table>
@@ -490,11 +494,6 @@ export function SessionPage() {
               {phase === "segmenting" ? "Segmenting…" : "Run segmentation"}
             </button>
           )}
-          {session.status === "segmented" && bouts.length > 0 && (
-            <button type="button" onClick={() => void handleApprove()} disabled={busy}>
-              {phase === "approving" ? "Approving…" : "Approve segmentation"}
-            </button>
-          )}
         </section>
       )}
 
@@ -544,6 +543,16 @@ export function SessionPage() {
               absolute window index; merge only works with an adjacent, same-status bout.
               Approving locks the segmentation -- no further corrections after that (E7).
             </p>
+          )}
+          {/* The approve control belongs *after* the bouts, not above them. It sat in the session
+              card, which meant the operator met "Approve segmentation" before they had scrolled
+              to a single bout -- on a product whose whole claim is that a human reviews the
+              segmentation before any metric exists. Reading order is the cheapest way to make
+              the order of operations obvious, and the only one that costs nothing to maintain. */}
+          {session?.status === "segmented" && (
+            <button type="button" onClick={() => void handleApprove()} disabled={busy}>
+              {phase === "approving" ? "Approving…" : "Approve segmentation"}
+            </button>
           )}
         </section>
       )}

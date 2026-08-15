@@ -405,6 +405,11 @@ describe("SessionPage", () => {
 
     expect(await screen.findByText(/0.42 \(6\/8 windows\)/)).toBeInTheDocument();
     expect(screen.getByText(/— \(0\/8 windows\)/)).toBeInTheDocument();
+
+    // Found on the deployed app: an unabbreviated TaskBadge renders the label itself, and the
+    // heading printed the label again beside it -- "Level walking Level walking" on every card.
+    const heading = screen.getByRole("heading", { level: 4 });
+    expect(heading.textContent).toBe("WAK Level walking");
   });
 
   it("downloads the PDF export via a blob URL", async () => {
@@ -441,5 +446,63 @@ describe("SessionPage file picker", () => {
     renderPage();
     const input = await screen.findByLabelText(/session recording csv/i);
     expect(input.getAttribute("accept")).toContain(".gz");
+  });
+});
+
+describe("SessionPage review ordering on the page", () => {
+  const segmented = {
+    session: {
+      id: "s1",
+      participant_id: "p1",
+      status: "segmented",
+      sample_count: 40320,
+      duration_seconds: 21,
+      model_version: "ensemble-1.0.0",
+      calibration_version: 1,
+      window_count: 167,
+    },
+    bouts: [
+      {
+        id: "b1",
+        task: "WAK",
+        start_ms: 0,
+        end_ms: 1000,
+        window_count: 8,
+        mean_confidence: 0.9,
+        flagged: false,
+        flag_reasons: [],
+        excluded: false,
+        exclusion_reason: null,
+        corrected: false,
+        original_task: null,
+      },
+    ],
+    flagged_count: 0,
+  };
+
+  async function reachSegmented() {
+    signUpload.mockResolvedValue({ upload_url: "https://bucket/put", object_name: "session/o1" });
+    putToSignedUrl.mockResolvedValue(undefined);
+    createSession.mockResolvedValue({ ...segmented.session, status: "uploaded", window_count: null });
+    segmentSession.mockResolvedValue(segmented);
+    renderPage();
+    const input = await screen.findByLabelText(/session recording csv/i);
+    fireEvent.change(input, {
+      target: { files: [new File(["x"], "demo_Sub10_session.csv.gz", { type: "" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^upload$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /run segmentation/i }));
+    return await screen.findByRole("button", { name: /approve segmentation/i });
+  }
+
+  // Found by walking the deployed app: the approve control sat in the session card, above the
+  // review table, so the operator met "Approve segmentation" before scrolling to a single bout.
+  // The product's whole claim is that a human reviews before any metric exists, so the reading
+  // order should say so. This asserts the DOM order, which is what a screen reader and a
+  // scrolling eye both follow.
+  it("puts the approve control after the bouts it is approving", async () => {
+    const approve = await reachSegmented();
+    const table = screen.getByRole("table");
+    expect(table.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
