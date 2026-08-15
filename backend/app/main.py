@@ -12,6 +12,7 @@ import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
@@ -37,6 +38,18 @@ def create_app() -> FastAPI:
             "Task-conditioned sEMG session analysis with reviewable automatic segmentation. "
             "Not a medical device. Not for diagnosis, treatment, or clinical decision-making."
         ),
+    )
+
+    origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        # No cookies are used (ADR-004 is a bearer token, not a session cookie), so credentials
+        # are never sent and never need to be allowed.
+        allow_credentials=False,
+        allow_methods=["*"],
+        # Authorization carries the Firebase ID token; Content-Type is needed for JSON bodies.
+        allow_headers=["Authorization", "Content-Type"],
     )
 
     @app.middleware("http")
