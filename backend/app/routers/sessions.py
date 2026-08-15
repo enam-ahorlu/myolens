@@ -12,6 +12,7 @@ step, not this one -- segmenting a recording is not the same act as trusting its
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -36,6 +37,8 @@ from app.domain.bouts import (
 from app.domain.calibration import restrict_to_calibrated
 from app.domain.calibration_record import CalibrationRecord, load_active
 from app.domain.features import extract_freq72
+from app.domain.metrics import CoContractionResult, TaskMetrics, compute_task_metrics, percent_cal
+from app.domain.montage import MONTAGE
 from app.domain.normalisation import zscore_envelopes, zscore_features
 from app.domain.ownership import load_owned_participant
 from app.domain.session_capture import parse_session_csv
@@ -49,6 +52,7 @@ from app.errors import (
     NotCalibrated,
     NotFound,
     SegmentationLocked,
+    SegmentationNotApproved,
     SegmentationNotReady,
 )
 from app.serving.onnx_predictor import get_ensemble
@@ -154,6 +158,65 @@ class BoutCorrectionOut(BaseModel):
     removed_bout_ids: list[str]
 
 
+class CoContractionOut(BaseModel):
+    value: float | None
+    windows_used: int
+    windows_total: int
+
+    @staticmethod
+    def from_domain(result: CoContractionResult) -> CoContractionOut:
+        return CoContractionOut(
+            value=result.value,
+            windows_used=result.windows_used,
+            windows_total=result.windows_total,
+        )
+
+
+class TaskMetricsOut(BaseModel):
+    task: str
+    bout_count: int
+    bout_duration_total_s: float
+    #: 9 values, %CAL, in montage channel order -- ``None`` where the calibration channel it
+    #: would be divided by produced no usable signal (§3.3's amp_mean/amp_peak).
+    amp_mean: list[float | None]
+    amp_peak: list[float | None]
+    duty_cycle: list[float]
+    cci_knee: CoContractionOut
+    cci_ankle: CoContractionOut
+    model_confidence_mean: float
+    correction_rate_pct: float
+
+    @staticmethod
+    def from_domain(metrics: TaskMetrics) -> TaskMetricsOut:
+        return TaskMetricsOut(
+            task=metrics.task,
+            bout_count=metrics.bout_count,
+            bout_duration_total_s=metrics.bout_duration_total_s,
+            amp_mean=[_none_if_nan(v) for v in metrics.amp_mean],
+            amp_peak=[_none_if_nan(v) for v in metrics.amp_peak],
+            duty_cycle=list(metrics.duty_cycle),
+            cci_knee=CoContractionOut.from_domain(metrics.cci_knee),
+            cci_ankle=CoContractionOut.from_domain(metrics.cci_ankle),
+            model_confidence_mean=metrics.model_confidence_mean,
+            correction_rate_pct=metrics.correction_rate_pct,
+        )
+
+
+class SessionMetricsOut(BaseModel):
+    """F1's §3.3 metric set, one entry per task with at least one approved (non-excluded) bout.
+
+    A task the operator excluded every bout of, or that never appeared in this session at all,
+    is simply absent from ``tasks`` -- there is nothing in §3.3 to compute for zero windows, and
+    a zero-filled card would misread as a measured absence of activity rather than an absence of
+    data.
+    """
+
+    session_id: str
+    channels: list[str]  # the 9-channel montage, in order -- labels the amp_mean/amp_peak arrays
+    flagged_count: int
+    tasks: list[TaskMetricsOut]
+
+
 StoreDep = Annotated[DocumentStore, Depends(get_document_store)]
 UserDep = Annotated[CurrentUser, Depends(get_current_user)]
 ObjectStoreDep = Annotated[ObjectStore, Depends(get_object_store)]
@@ -188,6 +251,24 @@ def _calibrated_tasks(calibration: CalibrationRecord | None) -> tuple[str, ...]:
     return tuple(
         task for task, summary in calibration.per_task.items() if summary.status == "calibrated"
     )
+
+
+def _load_calibration_version(
+    store: DocumentStore, participant_id: str, version: int | None
+) -> CalibrationRecord:
+    """The *exact* calibration a session was segmented against (recorded on the session at
+    segmentation time), not necessarily the participant's current active one -- a recalibration
+    between segmentation and metrics computation must not silently change a locked session's
+    %CAL reference out from under it.
+    """
+    docs = store.query(COLLECTIONS.CALIBRATIONS, participantId=participant_id, version=version)
+    if not docs:
+        raise NotFound("calibration", f"{participant_id}@v{version}")
+    return CalibrationRecord.from_document(docs[0])
+
+
+def _none_if_nan(value: float) -> float | None:
+    return None if math.isnan(value) else value
 
 
 @router.post(
@@ -450,3 +531,87 @@ def approve_session(session_id: str, user: UserDep, store: StoreDep) -> SessionO
         ),
     )
     return SessionOut.from_domain(updated)
+
+
+@router.get(
+    "/v1/sessions/{session_id}/metrics",
+    response_model=SessionMetricsOut,
+    summary="Compute the §3.3 metric set on an approved segmentation (F1)",
+)
+def get_session_metrics(
+    session_id: str, user: UserDep, store: StoreDep, objects: ObjectStoreDep
+) -> SessionMetricsOut:
+    session = _load_session(store, user, session_id)
+    bout_docs = store.query(COLLECTIONS.BOUTS, sessionId=session.id)
+    bouts = sorted((Bout.from_document(d) for d in bout_docs), key=lambda b: b.start_window)
+    flagged_count = sum(1 for b in bouts if b.flagged)
+
+    # FR-08/E7/F1: no metric before approval, full stop -- not even a stale one from before the
+    # last correction. The session's own status is the single source of truth for this gate,
+    # not (say) the presence of a cached metrics document.
+    if session.status != SessionStatus.APPROVED:
+        raise SegmentationNotApproved(session.id, flagged_count)
+
+    # Once approved, corrections are refused (SegmentationLocked) and the bouts underlying this
+    # computation can never change again -- so the result is cached at COLLECTIONS.METRICS,
+    # keyed by session id, and computed at most once per session.
+    cached = store.get(COLLECTIONS.METRICS, session.id)
+    if cached is not None:
+        return SessionMetricsOut.model_validate(cached)
+
+    calibration = _load_calibration_version(
+        store, session.participant_id, session.calibration_version
+    )
+    calibration_peak = np.array(calibration.envelope_peak, dtype=np.float64)
+
+    # Recomputed from the source recording rather than persisted at segmentation time: D4
+    # guarantees the pipeline is byte-identical for identical input, so the per-window envelope
+    # this reproduces is exactly the one segmentation used, without a second array to keep in
+    # sync with the bouts derived from it.
+    raw_bytes = objects.read_bytes(session.source_object)
+    signal = parse_session_csv(raw_bytes)
+    filtered = bandpass_filter(signal)
+    envelope = linear_envelope(filtered)
+    env_windows = sliding_windows(envelope)  # (n_windows, 480, 9)
+    # Per-window amplitude is the window's peak envelope, matching how the calibration capture's
+    # own %CAL reference was pooled (app.domain.calibration_capture.analyse_capture).
+    amplitude = np.ascontiguousarray(env_windows).max(axis=1)  # (n_windows, 9)
+    amplitude_pct_cal = percent_cal(amplitude, calibration_peak)
+
+    if amplitude_pct_cal.shape[0] != session.window_count:
+        # Should be unreachable under D4's determinism guarantee -- the source object and the
+        # pipeline are both fixed once a session is segmented. Surfacing this as an internal
+        # error rather than silently truncating/padding is deliberate: a mismatch here means the
+        # recording behind ``source_object`` changed after segmentation, and every metric below
+        # would be reading windows against the wrong bout boundaries.
+        raise MyoLensError(
+            status_code=500,
+            code=ErrorCode.INTERNAL,
+            message="Recomputed window count does not match the segmented session.",
+            details=[
+                {
+                    "expected": session.window_count,
+                    "recomputed": int(amplitude_pct_cal.shape[0]),
+                }
+            ],
+        )
+
+    by_task: dict[str, list[Bout]] = {}
+    for bout in bouts:
+        if bout.excluded:
+            continue
+        by_task.setdefault(bout.task, []).append(bout)
+
+    tasks = [
+        TaskMetricsOut.from_domain(compute_task_metrics(task, task_bouts, amplitude_pct_cal))
+        for task, task_bouts in sorted(by_task.items())
+    ]
+
+    result = SessionMetricsOut(
+        session_id=session.id,
+        channels=list(MONTAGE),
+        flagged_count=flagged_count,
+        tasks=tasks,
+    )
+    store.set(COLLECTIONS.METRICS, session.id, result.model_dump())
+    return result

@@ -14,9 +14,16 @@ absence directly. Reporting them in that order is a deliberate ordering, not a l
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+from app.domain.montage import GROUPS, MuscleGroup
+
+if TYPE_CHECKING:
+    from app.domain.bouts import Bout
 
 #: A channel is considered active when its envelope exceeds this fraction of its own
 #: calibration peak. Below it, the signal is not distinguishable from resting activity plus
@@ -148,3 +155,72 @@ def correction_rate(corrected_windows: int, total_windows: int) -> float:
     if total_windows <= 0:
         return 0.0
     return corrected_windows / total_windows * 100.0
+
+
+@dataclass(frozen=True)
+class TaskMetrics:
+    """The §3.3 metric set (F1/F2/F4), for one task in one session's approved segmentation."""
+
+    task: str
+    bout_count: int
+    bout_duration_total_s: float
+    amp_mean: tuple[float, ...]  # 9 values, %CAL, montage order
+    amp_peak: tuple[float, ...]
+    duty_cycle: tuple[float, ...]
+    cci_knee: CoContractionResult
+    cci_ankle: CoContractionResult
+    #: Mean ensemble confidence, pre-correction (F4) -- a bout's ``mean_confidence`` is never
+    #: touched by ``relabel_bout``, so this reflects what the model actually reported even when
+    #: the bout is now grouped under the task the operator corrected it *to*.
+    model_confidence_mean: float
+    correction_rate_pct: float
+
+
+def compute_task_metrics(
+    task: str, bouts: list[Bout], amplitude_pct_cal: np.ndarray
+) -> TaskMetrics:
+    """Aggregate the §3.3 metric set for one task from its approved (non-excluded) bouts.
+
+    ``bouts`` must already be filtered to this task and to ``excluded=False`` -- this function
+    does not re-check either, since the caller (``routers.sessions``) is the one grouping bouts
+    by task in the first place and doing it twice would just be two places that could disagree.
+    ``amplitude_pct_cal`` is the *whole session's* per-window, per-channel %CAL array; only the
+    rows this task's bouts cover are read from it.
+    """
+    if not bouts:
+        raise ValueError(f"no approved bouts for task '{task}'")
+
+    window_indices = np.concatenate([np.arange(b.start_window, b.end_window) for b in bouts])
+    task_amplitude = amplitude_pct_cal[window_indices]
+
+    knee_extensor = group_mean(task_amplitude, GROUPS[MuscleGroup.KNEE_EXTENSOR])
+    knee_flexor = group_mean(task_amplitude, GROUPS[MuscleGroup.KNEE_FLEXOR])
+    dorsiflexor = group_mean(task_amplitude, GROUPS[MuscleGroup.DORSIFLEXOR])
+    plantarflexor = group_mean(task_amplitude, GROUPS[MuscleGroup.PLANTARFLEXOR])
+
+    total_windows = sum(b.window_count for b in bouts)
+    corrected_windows = sum(b.window_count for b in bouts if b.corrected)
+    confidence_mean = sum(b.mean_confidence * b.window_count for b in bouts) / total_windows
+    duration_total_s = sum((b.end_ms - b.start_ms) for b in bouts) / 1000.0
+
+    # A dead calibration channel (peak <= 0) makes percent_cal produce an all-NaN column; the
+    # mean/max of an all-NaN slice is itself NaN, and numpy warns loudly about it every time.
+    # The NaN propagating out is correct -- "no usable calibration signal" should read as
+    # missing, not as a silent zero -- the warning about how it got there is not useful here.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        amp_mean = np.nanmean(task_amplitude, axis=0)
+        amp_peak = np.nanmax(task_amplitude, axis=0)
+
+    return TaskMetrics(
+        task=task,
+        bout_count=len(bouts),
+        bout_duration_total_s=duration_total_s,
+        amp_mean=tuple(float(v) for v in amp_mean),
+        amp_peak=tuple(float(v) for v in amp_peak),
+        duty_cycle=tuple(float(v) for v in duty_cycle(task_amplitude)),
+        cci_knee=co_contraction_index(knee_extensor, knee_flexor),
+        cci_ankle=co_contraction_index(dorsiflexor, plantarflexor),
+        model_confidence_mean=confidence_mean,
+        correction_rate_pct=correction_rate(corrected_windows, total_windows),
+    )

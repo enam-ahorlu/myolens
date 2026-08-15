@@ -482,3 +482,124 @@ def test_approve_writes_an_audit_entry():
     entries = store.query(COLLECTIONS.AUDIT, targetId=session_id)
     assert any(e["action"] == "session.approve" for e in entries)
     _reset()
+
+
+def test_metrics_are_refused_before_approval_f1_e7():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, _segmentation = _segmented_session(store, objects)
+
+    response = client.get(f"/v1/sessions/{session_id}/metrics")
+
+    assert response.status_code == 412
+    assert response.json()["code"] == "segmentation_not_approved"
+    _reset()
+
+
+def test_metrics_are_refused_before_segmentation():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
+    objects.put("session/p1/one.csv", _session_csv())
+    client = _client_as(CLINICIAN_A, store, objects)
+    created = client.post(
+        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+    ).json()
+
+    response = client.get(f"/v1/sessions/{created['id']}/metrics")
+
+    assert response.status_code == 412
+    assert response.json()["code"] == "segmentation_not_approved"
+    _reset()
+
+
+def test_metrics_are_computed_once_approved_f1():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, segmentation = _segmented_session(store, objects)
+    assert len(segmentation["bouts"]) == 1
+    bout = segmentation["bouts"][0]
+
+    client.post(f"/v1/sessions/{session_id}/approve")
+    response = client.get(f"/v1/sessions/{session_id}/metrics")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_id"] == session_id
+    assert len(body["channels"]) == 9
+    assert body["flagged_count"] == 1  # the single low-confidence STDUP bout
+
+    assert len(body["tasks"]) == 1
+    task_metrics = body["tasks"][0]
+    assert task_metrics["task"] == "STDUP"
+    assert task_metrics["bout_count"] == 1
+    assert task_metrics["correction_rate_pct"] == pytest.approx(0.0)
+    assert task_metrics["model_confidence_mean"] == pytest.approx(bout["mean_confidence"])
+    assert len(task_metrics["amp_mean"]) == 9
+    assert len(task_metrics["amp_peak"]) == 9
+    assert len(task_metrics["duty_cycle"]) == 9
+    assert "value" in task_metrics["cci_knee"]
+    assert "value" in task_metrics["cci_ankle"]
+
+    stored = store.get(COLLECTIONS.METRICS, session_id)
+    assert stored is not None
+    assert stored["session_id"] == session_id
+    _reset()
+
+
+def test_metrics_reflect_a_relabel_correction():
+    """Once corrected, a bout's windows count toward the task it was corrected *to*, and its
+    (unchanged) mean_confidence is reported as that task's pre-correction confidence -- see
+    ``compute_task_metrics``'s docstring."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, segmentation = _segmented_session(store, objects)
+    bout = segmentation["bouts"][0]
+
+    client.patch(
+        f"/v1/sessions/{session_id}/bouts/{bout['id']}", json={"op": "relabel", "task": "WAK"}
+    )
+    client.post(f"/v1/sessions/{session_id}/approve")
+    body = client.get(f"/v1/sessions/{session_id}/metrics").json()
+
+    assert len(body["tasks"]) == 1
+    task_metrics = body["tasks"][0]
+    assert task_metrics["task"] == "WAK"
+    assert task_metrics["correction_rate_pct"] == pytest.approx(100.0)
+    _reset()
+
+
+def test_metrics_omit_a_task_whose_only_bout_was_excluded_e6():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, segmentation = _segmented_session(store, objects)
+    bout = segmentation["bouts"][0]
+
+    client.patch(
+        f"/v1/sessions/{session_id}/bouts/{bout['id']}",
+        json={"op": "exclude", "reason": "artefact"},
+    )
+    client.post(f"/v1/sessions/{session_id}/approve")
+    response = client.get(f"/v1/sessions/{session_id}/metrics")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["tasks"] == []
+    assert body["flagged_count"] == 1  # exclusion does not change flagged status
+    _reset()
+
+
+def test_metrics_are_cached_after_the_first_computation():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, _segmentation = _segmented_session(store, objects)
+    client.post(f"/v1/sessions/{session_id}/approve")
+
+    first = client.get(f"/v1/sessions/{session_id}/metrics").json()
+    stored_after_first = store.get(COLLECTIONS.METRICS, session_id)
+    assert stored_after_first is not None
+
+    second = client.get(f"/v1/sessions/{session_id}/metrics").json()
+    assert second == first
+    _reset()
