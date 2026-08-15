@@ -163,6 +163,42 @@ export interface CalibrationOut {
   active: boolean;
 }
 
+// ---- Sessions, segmentation (D1-D8) --------------------------------------------------------
+
+export type SessionStatus = "uploaded" | "segmented" | "approved";
+
+export interface SessionOut {
+  id: string;
+  participant_id: string;
+  status: SessionStatus;
+  sample_count: number;
+  duration_seconds: number;
+  model_version: string | null;
+  calibration_version: number | null;
+  window_count: number | null;
+}
+
+export interface BoutOut {
+  id: string;
+  task: string;
+  start_ms: number;
+  end_ms: number;
+  window_count: number;
+  mean_confidence: number;
+  flagged: boolean;
+  flag_reasons: string[];
+  excluded: boolean;
+  exclusion_reason: string | null;
+  corrected: boolean;
+  original_task: string | null;
+}
+
+export interface SegmentationOut {
+  session: SessionOut;
+  bouts: BoutOut[];
+  flagged_count: number;
+}
+
 export const api = {
   listParticipants: () => request<Participant[]>("/v1/participants"),
 
@@ -219,8 +255,19 @@ export const api = {
   getActiveCalibration: (participantId: string) =>
     request<CalibrationOut>(`/v1/participants/${participantId}/calibration/active`),
 
-  // ---- Sessions, review, results -- request/requestBlob exported for the screens that still
-  // need the remaining frozen-surface routes (see HANDOFF item 7).
+  // ---- Sessions, segmentation (D1-D8) -------------------------------------------------------
+
+  createSession: (participantId: string, objectName: string) =>
+    request<SessionOut>("/v1/sessions", {
+      method: "POST",
+      body: JSON.stringify({ participant_id: participantId, object_name: objectName }),
+    }),
+
+  segmentSession: (sessionId: string) =>
+    request<SegmentationOut>(`/v1/sessions/${sessionId}/segment`, { method: "POST" }),
+
+  // ---- Review, results -- request/requestBlob exported for the screens that still need the
+  // remaining frozen-surface routes (see HANDOFF item 7).
   request,
   requestBlob,
 };

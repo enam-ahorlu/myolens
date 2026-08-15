@@ -46,9 +46,12 @@ export function ParticipantDetailPage() {
           <p>
             <Link to={`/participants/${participant.id}/calibration`}>Calibration &rarr;</Link>
           </p>
+          <p>
+            <Link to={`/participants/${participant.id}/session`}>Upload a session &rarr;</Link>
+          </p>
           <p className="muted">
-            Session upload, segmentation review, and results are not wired to this screen yet --
-            still API-only (see HANDOFF_MYOLENS.md §7).
+            Segmentation review and results are not wired to a screen yet -- still API-only (see
+            HANDOFF_MYOLENS.md §7).
           </p>
         </section>
       )}

@@ -14,6 +14,7 @@ import { CalibrationPage } from "./pages/CalibrationPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ParticipantDetailPage } from "./pages/ParticipantDetailPage";
 import { ParticipantsPage } from "./pages/ParticipantsPage";
+import { SessionPage } from "./pages/SessionPage";
 
 function TopBar() {
   const { user, signOut } = useAuth();
@@ -68,6 +69,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <CalibrationPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/participants/:participantId/session"
+            element={
+              <RequireAuth>
+                <SessionPage />
               </RequireAuth>
             }
           />
