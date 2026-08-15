@@ -26,9 +26,10 @@ import {
   type SessionMetricsOut,
   type SessionOut,
 } from "../lib/api";
+import { SessionTimeline } from "../components/SessionTimeline";
 import { TaskBadge } from "../components/TaskBadge";
 import { StatusChip } from "../components/StatusChip";
-import { TASKS, TASK_LABEL, type Task } from "../lib/tasks";
+import { TASKS, TASK_LABEL, byReviewPriority as sortByReviewPriority, type Task } from "../lib/tasks";
 
 type Phase = "idle" | "signing" | "uploading" | "registering" | "segmenting" | "approving";
 
@@ -341,21 +342,23 @@ export function SessionPage() {
     }
   }
 
-  /** E2: least-certain first. A chronological queue would spend a clinician's attention
-   * uniformly across bouts the model is confident about; sorting by ascending confidence is
-   * the mechanism by which a 0.858 macro-F1 model becomes a usable review workflow (SRS §4.2
-   * E2), and it's what FR-07's "surfaced first for review" actually depends on. Excluded bouts
-   * (nothing left to review) sort to the end regardless of confidence; start_ms is a stable
-   * tie-breaker only, never the primary key. */
-  function byReviewPriority(a: BoutOut, b: BoutOut): number {
-    if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
-    if (a.mean_confidence !== b.mean_confidence) return a.mean_confidence - b.mean_confidence;
-    return a.start_ms - b.start_ms;
+  /** E2: least-certain first, using the single tested definition of "review priority" in
+   * `lib/tasks.ts` (also the one E1's timeline legend and F-07's flagging both refer back to)
+   * rather than a second, parallel ordering living only in this file. Excluded bouts (nothing
+   * left to review) are held out and appended at the end, sorted by start time, since
+   * `byReviewPriority` itself has no notion of "excluded." */
+  function applyReviewOrder(bouts: BoutOut[]): BoutOut[] {
+    const excluded = bouts.filter((b) => b.excluded).sort((a, b) => a.start_ms - b.start_ms);
+    const active = bouts.filter((b) => !b.excluded);
+    const prioritized = sortByReviewPriority(
+      active.map((bout) => ({ bout, meanConfidence: bout.mean_confidence, flags: bout.flag_reasons })),
+    ).map((entry) => entry.bout);
+    return [...prioritized, ...excluded];
   }
 
   function applySegmentation(result: SegmentationOut) {
     setSession(result.session);
-    setBouts([...result.bouts].sort(byReviewPriority));
+    setBouts(applyReviewOrder(result.bouts));
     setFlaggedCount(result.flagged_count);
   }
 
@@ -367,7 +370,7 @@ export function SessionPage() {
         if (index >= 0) kept[index] = updated;
         else kept.push(updated);
       }
-      const sorted = kept.sort(byReviewPriority);
+      const sorted = applyReviewOrder(kept);
       setFlaggedCount(sorted.filter((b) => b.flagged && !b.excluded).length);
       return sorted;
     });
@@ -498,6 +501,7 @@ export function SessionPage() {
             {bouts.length} bout{bouts.length === 1 ? "" : "s"} · {flaggedCount} flagged for review
             {locked && " · locked, no further corrections"}
           </p>
+          <SessionTimeline bouts={bouts} />
           {!locked && bouts.length > 1 && (
             <p className="muted" role="note">
               Sorted least-certain first, so the bouts most worth a second look come before the

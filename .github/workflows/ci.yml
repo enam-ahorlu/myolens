@@ -39,6 +39,39 @@ jobs:
       - name: Contrast and colour-vision separation
         run: python scripts/verify_palette.py --table
 
+  firestore-rules:
+    # H3/A3: "a test proves it." Runs the same firestore.rules the project deploys against a
+    # real, locally-started Firestore emulator (not a mock) -- see firestore/rules.test.mjs.
+    # Without this job the rules-unit-tests only ever prove anything on whichever machine last
+    # ran them by hand; this makes that guarantee durable across every push.
+    name: Firestore rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: firestore/package-lock.json
+
+      - uses: actions/setup-java@v4
+        # The Firestore emulator is a JVM process; GitHub's ubuntu-latest runners do not ship a
+        # JDK by default.
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install
+        working-directory: firestore
+        run: npm ci
+
+      - name: Rules tests against the real emulator
+        run: >-
+          npx --prefix firestore firebase emulators:exec
+          --project myolens-rules-test --only firestore
+          "npm --prefix firestore test"
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
@@ -132,7 +165,7 @@ jobs:
     # not a new account to provision. Gated the same way as the backend deploy: every check
     # above it must pass first.
     name: Deploy Frontend to Firebase Hosting
-    needs: [debt-register, palette, backend, frontend]
+    needs: [debt-register, palette, firestore-rules, backend, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -185,7 +218,7 @@ jobs:
     # Deployment is gated on every check above it. A pipeline that can ship a revision whose
     # tests have not passed is not a pipeline, it is an upload button.
     name: Deploy to Cloud Run
-    needs: [debt-register, palette, backend, frontend]
+    needs: [debt-register, palette, firestore-rules, backend, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

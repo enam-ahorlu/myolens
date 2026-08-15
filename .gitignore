@@ -24,6 +24,12 @@ node_modules/
 frontend/dist/
 *.local
 
+# Firebase emulator (H3 rules tests)
+firestore-debug.log
+ui-debug.log
+firebase-debug.*.log
+.firebase/
+
 # Model artefacts: there is no release pipeline that places these on Cloud Run separately from
 # the container image (the Dockerfile COPYs backend/artifacts/ directly), and this repository is
 # private, so the four frozen artefacts (svm_freq72.onnx, resnet_se_cd.onnx[.data], and the

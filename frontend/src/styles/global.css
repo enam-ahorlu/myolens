@@ -282,6 +282,61 @@ ul[aria-label] li {
   border-bottom: 1px solid var(--border-default);
 }
 
+/* ---- segmentation timeline (E1: bouts coloured by task, confidence as opacity, flags marked) - */
+.timeline-track {
+  position: relative;
+  height: var(--timeline-track-height);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.timeline-bout {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--bg-surface);
+}
+
+/* A flagged bout gets a solid marker bar along its top edge, in the same colour the "Advisory"
+   status chip uses, so the same visual vocabulary means the same thing everywhere in the
+   product -- not a second, timeline-only colour code to learn. */
+.timeline-bout--flagged::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--status-warn);
+}
+
+/* Excluded bouts are retained in the record (E6) but contribute nothing to review or metrics;
+   a diagonal hatch says "still here, not actionable" without relying on opacity alone, which
+   confidence already uses for a different meaning. */
+.timeline-bout--excluded {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--border-strong),
+    var(--border-strong) 4px,
+    var(--bg-subtle) 4px,
+    var(--bg-subtle) 8px
+  );
+}
+
+.timeline-legend {
+  margin-top: var(--space-2);
+}
+
+.timeline-legend__flag {
+  display: inline-block;
+  width: 10px;
+  height: 4px;
+  background: var(--status-warn);
+  vertical-align: middle;
+}
+
 /* ---- footer (H1: model card reachable from every page footer) ------------------------------- */
 .footer {
   padding: var(--space-4) var(--space-6);

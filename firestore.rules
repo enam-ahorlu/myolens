@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// H3, A3, SRS §5.1 -- "Firestore rules deny cross-clinician reads and deny all client writes to
+// the audit collection." TD-08's wording is load-bearing and is repeated here rather than
+// paraphrased: these rules constrain the client SDK. The Cloud Run service authenticates with
+// the Admin SDK (backend/app/adapters/firestore_repo.py) and bypasses every rule below by
+// design, which is exactly why the audit log is described as *client*-immutable, not immutable.
+//
+// No screen in this application currently talks to Firestore directly -- every read and write
+// goes through the FastAPI service (frontend/src/lib/api.ts is HTTP-only). These rules are
+// therefore the client-side half of a boundary this application does not yet exercise, proven
+// here so that boundary is real on the day something does reach Firestore directly, not assumed.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // A3: a clinician reads only records they created. Admin has no special read grant here --
+    // A4's admin surface is Firebase Auth user management, not participant data, and widening
+    // this rule for "admin" would be exactly the kind of quiet scope creep SRS §8 forbids.
+    function owns(field) {
+      return signedIn() && resource.data[field] == request.auth.uid;
+    }
+
+    match /participants/{participantId} {
+      allow read: if owns('createdBy');
+      allow write: if false;
+    }
+
+    match /calibrations/{calibrationId} {
+      allow read: if owns('createdBy');
+      allow write: if false;
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if owns('createdBy');
+      allow write: if false;
+    }
+
+    // A bout carries no ownership field of its own (backend/app/domain/bouts.py) -- ownership
+    // is via the session it belongs to, so the check follows that same chain here.
+    match /bouts/{boutId} {
+      allow read: if signedIn()
+        && get(/databases/$(database)/documents/sessions/$(resource.data.sessionId)).data.createdBy
+           == request.auth.uid;
+      allow write: if false;
+    }
+
+    // H3, the literal requirement: no client -- not even the record's own actor -- may create,
+    // update or delete an audit entry. Every audit write in this system is server-side (E8, H2).
+    match /audit/{entryId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Deny-by-default for anything not named above, rather than an allow-by-default that would
+    // need to be remembered every time a new collection is added.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

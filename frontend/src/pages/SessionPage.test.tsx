@@ -296,6 +296,11 @@ describe("SessionPage", () => {
     expect(screen.getByRole("note")).toHaveTextContent(/sorted least-certain first/i);
   });
 
+  it("renders the segmentation timeline once bouts exist (E1)", async () => {
+    await getToReview();
+    expect(screen.getByRole("img", { name: /segmentation timeline/i })).toBeInTheDocument();
+  });
+
   it("relabels a bout and reflects the correction", async () => {
     await getToReview();
 
