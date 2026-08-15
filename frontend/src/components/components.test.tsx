@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
+import { Footer } from "./Footer";
 import { IntendedUseBanner } from "./IntendedUseBanner";
 import { StatusChip } from "./StatusChip";
 import { TaskBadge } from "./TaskBadge";
@@ -27,6 +29,18 @@ describe("the intended-use banner", () => {
     const { container } = render(<IntendedUseBanner />);
     expect(container.querySelectorAll("button")).toHaveLength(0);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("the footer", () => {
+  it("links to the model card (H1: reachable from every page footer)", () => {
+    render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>,
+    );
+    const link = screen.getByRole("link", { name: /model card/i });
+    expect(link).toHaveAttribute("href", "/model-card");
   });
 });
 

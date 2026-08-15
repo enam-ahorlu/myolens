@@ -268,8 +268,8 @@ button.link-button {
   padding: 0;
 }
 
-/* ---- participant list ------------------------------------------------------------------------ */
-ul[aria-label="Participants"] {
+/* ---- labelled data lists (participants, the model card's montage/failure-mode lists, etc.) --- */
+ul[aria-label] {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -277,9 +277,25 @@ ul[aria-label="Participants"] {
   gap: var(--space-3);
 }
 
-ul[aria-label="Participants"] li {
+ul[aria-label] li {
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border-default);
+}
+
+/* ---- footer (H1: model card reachable from every page footer) ------------------------------- */
+.footer {
+  padding: var(--space-4) var(--space-6);
+  text-align: center;
+}
+
+.footer a {
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: var(--brand-primary);
 }
 
 /* ---- simple data tables (calibration status, metrics) --------------------------------------- */

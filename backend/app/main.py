@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.errors import ErrorCode, ErrorEnvelope, MyoLensError
-from app.routers import calibrations, health, participants, sessions, uploads
+from app.routers import calibrations, health, models, participants, sessions, uploads
 
 # Structured, and deliberately free of participant identifiers. A pseudonymous code in a log line
 # is still a re-identification surface once combined with a session time.
@@ -99,6 +99,7 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content=envelope.model_dump(mode="json"))
 
     app.include_router(health.router)
+    app.include_router(models.router)
     app.include_router(participants.router)
     app.include_router(uploads.router)
     app.include_router(calibrations.router)

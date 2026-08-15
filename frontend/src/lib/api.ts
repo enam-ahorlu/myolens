@@ -244,7 +244,54 @@ export interface SessionMetricsOut {
   tasks: TaskMetricsOut[];
 }
 
+// ---- Model card (H1) --------------------------------------------------------------------
+
+export type PredictorMode = "ensemble" | "svm_only";
+
+export interface AccuracyRegime {
+  predictor: PredictorMode;
+  label: string;
+  macro_f1: number;
+  balanced_acc: number;
+  n_windows: number;
+}
+
+export interface HeldOutValidation {
+  holdout_subjects: number[];
+  training_subjects_n: number;
+  n_windows: number;
+  seed: number;
+}
+
+export interface TrainingProtocol {
+  created_utc: string;
+  window_ms: number;
+  step_ms: number;
+  bandpass_hz: number[];
+  bandpass_order: number;
+  envelope_ms: number;
+  normalisation_mode: string;
+}
+
+export interface ModelCard {
+  active_predictor: PredictorMode;
+  active_version: string;
+  active_sha256: string;
+  accuracy_regimes: AccuracyRegime[];
+  held_out_validation: HeldOutValidation;
+  training_protocol: TrainingProtocol;
+  classes: string[];
+  montage_channels: string[];
+  montage_contract_version: string;
+  failure_modes: string[];
+  intended_use: string;
+}
+
 export const api = {
+  // Unauthenticated (see backend/app/routers/models.py) -- reachable from the footer before
+  // sign-in, the same as the route itself.
+  getModelCard: () => request<ModelCard>("/v1/models/current", { auth: false }),
+
   listParticipants: () => request<Participant[]>("/v1/participants"),
 
   getParticipant: (id: string) => request<Participant>(`/v1/participants/${id}`),

@@ -7,11 +7,13 @@
  * failed API calls before being redirected.
  */
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Footer } from "./components/Footer";
 import { IntendedUseBanner } from "./components/IntendedUseBanner";
 import { RequireAuth } from "./components/RequireAuth";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { CalibrationPage } from "./pages/CalibrationPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ModelCardPage } from "./pages/ModelCardPage";
 import { ParticipantDetailPage } from "./pages/ParticipantDetailPage";
 import { ParticipantsPage } from "./pages/ParticipantsPage";
 import { SessionPage } from "./pages/SessionPage";
@@ -48,6 +50,7 @@ export default function App() {
         <IntendedUseBanner />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/model-card" element={<ModelCardPage />} />
           <Route
             path="/"
             element={
@@ -81,6 +84,7 @@ export default function App() {
             }
           />
         </Routes>
+        <Footer />
       </BrowserRouter>
     </AuthProvider>
   );
