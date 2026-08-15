@@ -84,3 +84,12 @@ evidence that the contract is enforced rather than declared.
 Firebase Authentication, Cloud Firestore, Cloud Storage, Cloud Run and Firebase Hosting are used
 as managed services. ONNX Runtime, FastAPI, Pydantic, NumPy, SciPy, PyWavelets, React, Vite and
 Vitest are used under their respective open-source licences.
+
+The pre-clock interface design (§2) was built on the **MediCare Admin Dashboard UI Kit**, a Figma
+Community resource by UI Expert (Figma handle `@uiexpert`), used under a
+**CC BY 4.0** (Creative Commons Attribution 4.0 International) licence:
+https://www.figma.com/community/file/1604474505029333381/medicare-admin-dashboard-ui-kit.
+Attribution is recorded here because CC BY 4.0 makes it a licence condition, not a courtesy. The
+kit supplied a starting layout and component set only; the palette, type scale, spacing, radii and
+all other design tokens actually shipped in this application are this project's own — derived and
+verified in `scripts/verify_palette.py` and recorded in `docs/DESIGN_TOKENS.md` — not the kit's.
