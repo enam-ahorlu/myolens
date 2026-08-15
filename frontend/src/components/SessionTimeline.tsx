@@ -3,9 +3,20 @@
  * opacity, flagged bouts visually marked.
  *
  * Deliberately a *supplement* to the bout table below it, not a replacement -- the same
- * discipline `TaskBadge` documents ("colour is the fast path, not the only path"). Every segment
- * still carries a text title so the same information reaches someone who cannot see colour or
- * opacity differences at all, and the sortable/actionable review list is the table, not this.
+ * discipline `TaskBadge` documents ("colour is the fast path, not the only path"). The
+ * sortable/actionable review list is the table, not this.
+ *
+ * **Accessibility.** The track was previously `role="img"` with a single label, which collapses
+ * it to a leaf in the accessibility tree and discards every child's `aria-label` -- so the
+ * per-bout labels below were unreachable, and the docstring's claim that they carried the same
+ * information to a non-sighted reader was false. It is a list, because that is what it is: an
+ * ordered set of bouts. Each segment is a `listitem` carrying its own accessible name.
+ *
+ * There is deliberately **no keyboard handling**, and that is not an omission. The segments have
+ * no behaviour -- no click handler, no selection, nothing to activate. WCAG 2.1.1 governs
+ * *functionality*, and adding `tabIndex` to a non-interactive `div` would manufacture forty tab
+ * stops that do nothing, which is worse for a keyboard user than none. Every action lives in the
+ * table, which is reachable and operable in the ordinary way.
  *
  * Bounded by bout count, not window count: even a 10-minute, 4800-window session produces on
  * the order of tens of bouts (D6/D7 merge adjacent same-label windows first), so this renders a
@@ -31,7 +42,7 @@ export function SessionTimeline({ bouts }: { bouts: BoutOut[] }) {
 
   return (
     <div>
-      <div className="timeline-track" role="img" aria-label="Segmentation timeline">
+      <ol className="timeline-track" aria-label="Segmentation timeline, in recording order">
         {bouts.map((bout) => {
           const leftPct = (bout.start_ms / durationMs) * 100;
           const widthPct = Math.max(((bout.end_ms - bout.start_ms) / durationMs) * 100, 0.15);
@@ -43,7 +54,7 @@ export function SessionTimeline({ bouts }: { bouts: BoutOut[] }) {
               (bout.flagged ? ` -- flagged: ${bout.flag_reasons.join(", ")}` : "");
 
           return (
-            <div
+            <li
               key={bout.id}
               className={`timeline-bout${bout.flagged && !bout.excluded ? " timeline-bout--flagged" : ""}${bout.excluded ? " timeline-bout--excluded" : ""}`}
               title={title}
@@ -57,7 +68,7 @@ export function SessionTimeline({ bouts }: { bouts: BoutOut[] }) {
             />
           );
         })}
-      </div>
+      </ol>
       <p className="muted timeline-legend">
         Colour = task &middot; fainter = less certain &middot;{" "}
         <span className="timeline-legend__flag" aria-hidden="true" /> marked = flagged for review

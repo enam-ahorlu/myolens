@@ -74,6 +74,21 @@ TEXT_PAIRS = {
     "status-excluded on bg-subtle (excluded chip, as rendered)": ("#5B6167", "#EDF1F3"),
 }
 
+# --------------------------------------------------------------------------------------------
+# The timeline (E1) draws each bout as a task-coloured block whose *opacity* encodes model
+# confidence, over --bg-subtle. Nothing checked that, and the omission was exactly where it
+# mattered: the palette gate covered flat fills, while the one component that composites its
+# colours was added later and slipped past. At the original floor of 0.42 every task landed
+# between 1.89:1 and 2.25:1 against the track -- so the least-confident bout, the one a reviewer
+# most needs to notice, was the one nearest to invisible.
+#
+# WCAG 2.1 SC 1.4.11 (Non-text Contrast) asks 3:1 of a graphical object required to understand
+# the content. A bout block is exactly that.
+# --------------------------------------------------------------------------------------------
+TIMELINE_TRACK = "#EDF1F3"   # --bg-subtle, the track a bout is drawn over
+CONFIDENCE_OPACITY_FLOOR = 0.70  # mirrors lib/tasks.ts and --confidence-opacity-floor
+MIN_GRAPHICAL_CONTRAST = 3.0  # WCAG 2.1 SC 1.4.11
+
 MIN_CONTRAST = 4.5           # WCAG 2.1 AA, normal text
 MIN_TASK_SEPARATION = 12.0   # any two task fills, under common vision types
 MIN_DNS_WAK = 30.0           # the pair the model confuses: held to a much stricter floor
@@ -195,6 +210,17 @@ def separation(a: str, b: str, vision: str) -> float:
 
 
 # ---------------------------------------------- the checks
+def composite(foreground: str, background: str, alpha: float) -> str:
+    """The colour actually rendered when ``foreground`` is drawn at ``alpha`` over ``background``.
+
+    Source-over compositing. Contrast has to be measured against what reaches the eye, not
+    against the token's nominal hex -- a half-transparent block is not the colour it declares.
+    """
+    fg, bg = hex_rgb(foreground), hex_rgb(background)
+    blended = tuple(alpha * f + (1 - alpha) * b for f, b in zip(fg, bg, strict=True))
+    return "#" + "".join(f"{round(c * 255):02X}" for c in blended)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--table", action="store_true", help="print the full matrix first")
@@ -225,6 +251,19 @@ def main() -> int:
         if ratio < MIN_CONTRAST:
             failures.append(
                 f"{name}: {fg} on {bg} is {ratio:.2f}:1, below the {MIN_CONTRAST}:1 WCAG AA floor."
+            )
+
+    # The timeline at its faintest: every task must still be visible against the track.
+    for name, colour in TASK.items():
+        rendered = composite(colour, TIMELINE_TRACK, CONFIDENCE_OPACITY_FLOOR)
+        ratio = contrast(rendered, TIMELINE_TRACK)
+        if ratio < MIN_GRAPHICAL_CONTRAST:
+            failures.append(
+                f"{name} on the timeline at the confidence-opacity floor "
+                f"({CONFIDENCE_OPACITY_FLOOR:.2f}) renders as {rendered} and is {ratio:.2f}:1 "
+                f"against the track {TIMELINE_TRACK}, below WCAG 1.4.11's "
+                f"{MIN_GRAPHICAL_CONTRAST}:1. The least-confident bout is the one the reviewer "
+                f"most needs to see."
             )
 
     for a, b in itertools.combinations(TASK, 2):
@@ -258,10 +297,16 @@ def main() -> int:
         for v in COMMON_VISION
     )
     dns_wak = min(separation(TASK["task/dns"], TASK["task/wak"], v) for v in ALL_VISION)
+    faintest_timeline = min(
+        contrast(composite(c, TIMELINE_TRACK, CONFIDENCE_OPACITY_FLOOR), TIMELINE_TRACK)
+        for c in TASK.values()
+    )
     print(
         f"OK  {len(everything)} colours clear WCAG AA on white text, {len(TEXT_PAIRS)} app-wide "
         f"text/background pairs clear WCAG AA (I6); weakest task pair is dE {weakest_common:.1f} "
-        f"under common vision types; DNS/WAK never closer than dE {dns_wak:.1f}."
+        f"under common vision types; DNS/WAK never closer than dE {dns_wak:.1f}; faintest "
+        f"timeline bout is {faintest_timeline:.2f}:1 against the track (WCAG 1.4.11 floor "
+        f"{MIN_GRAPHICAL_CONTRAST}:1)."
     )
     return 0
 

@@ -300,7 +300,7 @@ describe("SessionPage", () => {
 
   it("renders the segmentation timeline once bouts exist (E1)", async () => {
     await getToReview();
-    expect(screen.getByRole("img", { name: /segmentation timeline/i })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: /segmentation timeline/i })).toBeInTheDocument();
   });
 
   it("relabels a bout and reflects the correction", async () => {

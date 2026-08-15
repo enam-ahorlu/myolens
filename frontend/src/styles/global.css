@@ -282,9 +282,23 @@ ul[aria-label] li {
   border-bottom: 1px solid var(--border-default);
 }
 
+/* ---- motion ---------------------------------------------------------------------------------
+   There is no `prefers-reduced-motion` block, and that is a finding rather than an oversight:
+   this stylesheet declares no transition, no animation, no keyframes and no transform, so there
+   is nothing for the query to reduce. An empty media block would assert a consideration that had
+   not actually been made. If motion is ever introduced -- a loading shimmer, an expanding panel,
+   a scroll-into-view on the timeline -- it belongs behind one, and this note is the reminder.
+   ------------------------------------------------------------------------------------------- */
+
 /* ---- segmentation timeline (E1: bouts coloured by task, confidence as opacity, flags marked) - */
 .timeline-track {
   position: relative;
+  /* It is an <ol> for the accessibility tree's sake (see SessionTimeline.tsx); the browser's
+     list affordances are removed because the children are absolutely positioned onto a track,
+     not stacked as list rows. */
+  list-style: none;
+  margin: 0;
+  padding: 0;
   height: var(--timeline-track-height);
   background: var(--bg-subtle);
   border: 1px solid var(--border-default);

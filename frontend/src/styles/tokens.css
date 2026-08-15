@@ -111,5 +111,7 @@
 
   /* ---- timeline ----------------------------------------------------------------------- */
   --timeline-track-height: 96px;   /* fits a label, a duration and a flag chip without clipping */
-  --confidence-opacity-floor: 0.42; /* opacity = floor + (1 - floor) x confidence */
+  --confidence-opacity-floor: 0.70; /* opacity = floor + (1 - floor) x confidence.
+                                       0.70, not taste: below it a bout fails WCAG 1.4.11's 3:1
+                                       against --bg-subtle. See lib/tasks.ts and verify_palette.py. */
 }

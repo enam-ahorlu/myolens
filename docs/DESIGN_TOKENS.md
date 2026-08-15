@@ -58,6 +58,24 @@ and ensembling more than halved it. A palette in which those two fills looked si
 would hide the system's known weakness behind a colour choice — the reviewer would be least able
 to see a distinction exactly where the model is least reliable.
 
+### The timeline, at its faintest
+
+A bout block is drawn over `--bg-subtle` at an opacity that encodes model confidence, so the
+colour that reaches the eye is not the token's own hex but `a x task + (1 - a) x track`. Nothing
+checked that until now, and the omission sat exactly where it mattered: the gate covered flat
+fills, and the one component that composites its colours was added afterwards and slipped past
+it. At the original floor of 0.42 every task landed between **1.89:1 and 2.25:1** against the
+track, against the **3:1** WCAG 2.1 SC 1.4.11 asks of a graphical object -- so the least-confident
+bout, the one a reviewer most needs to notice, was the one nearest to invisible.
+
+The floor is now **0.70**, the point at which all four clear it (stair descent binds, at 0.695).
+`verify_palette.py` recomputes the composite on every push, so it cannot drift back down quietly.
+
+The cost is stated rather than hidden: the usable opacity range narrows from 0.58 to 0.30, so the
+confidence gradient is subtler than it was. Opacity was never the only channel carrying it -- the
+bout table shows mean confidence numerically and each segment's accessible name states it in
+words -- and a subtle gradient beats an invisible bout.
+
 ### What the check caught
 
 The first candidate set used violet `#6D28D9` for sit-to-stand. It passes contrast comfortably

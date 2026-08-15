@@ -32,8 +32,24 @@ export const TASK_COLOUR_VAR: Record<Task, string> = {
   WAK: "var(--task-wak)",
 };
 
-/** Lowest opacity a bout block may be drawn at. Mirrors --confidence-opacity-floor. */
-export const CONFIDENCE_OPACITY_FLOOR = 0.42;
+/**
+ * Lowest opacity a bout block may be drawn at. Mirrors --confidence-opacity-floor.
+ *
+ * **0.70 is a WCAG floor, not a taste decision, and it is checked.** A segment is drawn over
+ * `--bg-subtle`, so at opacity a its effective colour is `a x task + (1 - a) x track`. At the
+ * previous floor of 0.42 all four task colours landed between 1.89:1 and 2.25:1 against that
+ * track, against the 3:1 that WCAG 2.1 SC 1.4.11 requires of a graphical object -- a
+ * low-confidence bout was very nearly invisible, which is precisely the bout the reviewer most
+ * needs to see. Stair descent is the binding constraint at 0.695; 0.70 clears all four.
+ * `scripts/verify_palette.py` recomputes this on every push and fails the build if it stops
+ * holding, so the number cannot drift back down unnoticed.
+ *
+ * The cost is real and worth stating: the usable opacity range narrows from 0.58 to 0.30, so
+ * the confidence gradient is subtler than it was. Opacity was never the only channel carrying
+ * it -- the bout table shows mean confidence numerically, and each segment's accessible name
+ * states it in words -- and a subtle gradient beats an invisible bout.
+ */
+export const CONFIDENCE_OPACITY_FLOOR = 0.7;
 
 /**
  * Map a model confidence to the opacity its bout is drawn at.

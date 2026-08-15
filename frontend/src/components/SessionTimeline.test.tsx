@@ -29,7 +29,7 @@ describe("SessionTimeline (E1)", () => {
     ];
     render(<SessionTimeline bouts={bouts} />);
 
-    const track = screen.getByRole("img", { name: /segmentation timeline/i });
+    const track = screen.getByRole("list", { name: /segmentation timeline/i });
     const segments = track.querySelectorAll(".timeline-bout");
     expect(segments).toHaveLength(2);
     // Total duration is 4000ms (the later bout's end_ms): the first bout is the first quarter.
@@ -47,8 +47,9 @@ describe("SessionTimeline (E1)", () => {
 
     const segment = document.querySelector(".timeline-bout") as HTMLElement;
     expect(segment.style.backgroundColor).toBe("var(--task-dns)");
-    // confidenceOpacity(0.5) = 0.42 + 0.58*0.5 = 0.71
-    expect(segment.style.opacity).toBe("0.71");
+    // confidenceOpacity(0.5) = 0.70 + 0.30*0.5 = 0.85. The floor is 0.70 rather than 0.42
+    // because below it a bout fails WCAG 1.4.11 against the track -- see lib/tasks.ts.
+    expect(segment.style.opacity).toBe("0.85");
   });
 
   it("marks a flagged bout distinctly from an unflagged one", () => {
@@ -78,5 +79,26 @@ describe("SessionTimeline (E1)", () => {
   it("renders nothing for an empty bout list", () => {
     const { container } = render(<SessionTimeline bouts={[]} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // Regression guard. The track used to be role="img", which collapses it to a leaf in the
+  // accessibility tree and silently discards every child's aria-label -- so the per-bout labels
+  // below existed in the markup and reached nobody. A test asserting only that the container
+  // has an accessible name passed happily throughout. This one asserts the children.
+  it("exposes every bout to assistive technology, not just the track", () => {
+    render(
+      <SessionTimeline
+        bouts={[
+          bout({ id: "a", task: "WAK", start_ms: 0, end_ms: 1000, mean_confidence: 0.9 }),
+          bout({ id: "b", task: "DNS", start_ms: 1000, end_ms: 2000, mean_confidence: 0.4 }),
+        ]}
+      />,
+    );
+
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveAccessibleName(/level walking/i);
+    expect(items[1]).toHaveAccessibleName(/stair descent/i);
+    expect(items[1]).toHaveAccessibleName(/40% confidence/i);
   });
 });
