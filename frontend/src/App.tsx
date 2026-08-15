@@ -10,6 +10,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { IntendedUseBanner } from "./components/IntendedUseBanner";
 import { RequireAuth } from "./components/RequireAuth";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { CalibrationPage } from "./pages/CalibrationPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ParticipantDetailPage } from "./pages/ParticipantDetailPage";
 import { ParticipantsPage } from "./pages/ParticipantsPage";
@@ -59,6 +60,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <ParticipantDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/participants/:participantId/calibration"
+            element={
+              <RequireAuth>
+                <CalibrationPage />
               </RequireAuth>
             }
           />

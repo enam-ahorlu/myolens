@@ -43,9 +43,12 @@ export function ParticipantDetailPage() {
             {participant.difficulty_band ? ` · ${participant.difficulty_band} difficulty` : ""}
           </p>
           {participant.notes && <p>{participant.notes}</p>}
+          <p>
+            <Link to={`/participants/${participant.id}/calibration`}>Calibration &rarr;</Link>
+          </p>
           <p className="muted">
-            Calibration and session review are not wired to this screen yet -- upload, inference,
-            and the review/results workflow are still API-only (see HANDOFF_MYOLENS.md §7).
+            Session upload, segmentation review, and results are not wired to this screen yet --
+            still API-only (see HANDOFF_MYOLENS.md §7).
           </p>
         </section>
       )}

@@ -132,6 +132,37 @@ export interface ParticipantInput {
   notes?: string;
 }
 
+// ---- Uploads, calibration -----------------------------------------------------------------
+
+export type UploadKind = "calibration" | "session";
+
+export interface SignUploadResponse {
+  object_name: string;
+  upload_url: string;
+  method: string;
+  expires_in_seconds: number;
+}
+
+export interface TaskCalibrationOut {
+  window_count: number;
+  block_count: number;
+  status: string;
+  sufficient: boolean;
+}
+
+export interface CalibrationOut {
+  id: string;
+  participant_id: string;
+  version: number;
+  created_at: string;
+  per_task: Record<string, TaskCalibrationOut>;
+  envelope_peak: number[];
+  mahalanobis: number;
+  difficulty_band: string;
+  ood_flag: boolean;
+  active: boolean;
+}
+
 export const api = {
   listParticipants: () => request<Participant[]>("/v1/participants"),
 
@@ -149,8 +180,47 @@ export const api = {
   deleteParticipant: (id: string) =>
     request<void>(`/v1/participants/${id}`, { method: "DELETE" }),
 
-  // ---- Uploads, calibration, sessions -- request/requestBlob exported for the screens that
-  // need the remaining frozen-surface routes not yet wired to a UI (see HANDOFF item 7).
+  // ---- Uploads (ADR-002) ------------------------------------------------------------------
+
+  signUpload: (kind: UploadKind, participantId: string, contentType = "text/csv") =>
+    request<SignUploadResponse>("/v1/uploads/sign", {
+      method: "POST",
+      body: JSON.stringify({ kind, participant_id: participantId, content_type: contentType }),
+    }),
+
+  // The signed URL is a direct-to-bucket PUT, not a backend route -- it carries no auth header
+  // of ours (the signature itself is the credential) and the bucket's response body is not
+  // JSON, so this bypasses `request()` entirely rather than forcing it through a shape it
+  // wasn't built for.
+  putToSignedUrl: async (uploadUrl: string, contentType: string, file: File | Blob) => {
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: file,
+    });
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        "upload_failed",
+        `The upload to storage failed (status ${response.status}).`,
+        [],
+      );
+    }
+  },
+
+  // ---- Calibration (C1-C5) ------------------------------------------------------------------
+
+  createCalibration: (participantId: string, objectName: string) =>
+    request<CalibrationOut>("/v1/calibrations", {
+      method: "POST",
+      body: JSON.stringify({ participant_id: participantId, object_name: objectName }),
+    }),
+
+  getActiveCalibration: (participantId: string) =>
+    request<CalibrationOut>(`/v1/participants/${participantId}/calibration/active`),
+
+  // ---- Sessions, review, results -- request/requestBlob exported for the screens that still
+  // need the remaining frozen-surface routes (see HANDOFF item 7).
   request,
   requestBlob,
 };

@@ -267,3 +267,22 @@ ul[aria-label="Participants"] li {
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--border-default);
 }
+
+/* ---- simple data tables (calibration status, metrics) --------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+
+th,
+td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+}
+
+th {
+  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+}
