@@ -141,9 +141,23 @@ body {
 }
 
 .page {
+  /* Capped and centred so content doesn't pin to the left edge of a wide laptop/desktop
+     viewport, leaving a large dead zone on the right -- the "left-aligned, huge empty space"
+     complaint. Narrower viewports are unaffected: max-width simply never binds below ~1100px. */
+  max-width: 1100px;
+  margin: 0 auto;
   padding: var(--space-6);
   display: grid;
   gap: var(--space-5);
+}
+
+/* Opt-in modifier for pages whose cards are independent and benefit from sitting side by side
+   on wide screens (e.g. a registration form next to the list it populates) rather than stacking
+   with empty space beside each card. Collapses to a single column once a card would otherwise
+   drop below 360px, so it still behaves like `.page` on a laptop-width or narrower viewport. */
+.page--split {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  align-items: start;
 }
 
 .card {
@@ -195,7 +209,7 @@ body {
 form {
   display: grid;
   gap: var(--space-2);
-  max-width: 420px;
+  max-width: 480px;
 }
 
 form label {

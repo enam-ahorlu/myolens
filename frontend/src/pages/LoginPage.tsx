@@ -41,7 +41,7 @@ export function LoginPage() {
 
   return (
     <div className="page">
-      <section className="card" style={{ maxWidth: 360 }}>
+      <section className="card" style={{ maxWidth: 360, margin: "0 auto" }}>
         <h2 className="card__title">Sign in</h2>
         {!configured && (
           <p className="muted">

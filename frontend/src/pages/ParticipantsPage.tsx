@@ -61,7 +61,7 @@ export function ParticipantsPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page page--split">
       <section className="card">
         <h2 className="card__title">Register a participant</h2>
         <form onSubmit={handleCreate}>
