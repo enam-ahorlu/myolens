@@ -172,3 +172,98 @@ body {
   font-size: var(--text-small);
   margin: var(--space-3) 0 0;
 }
+
+/* ---- top-bar navigation -------------------------------------------------------------------- */
+.top-bar__nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  font-size: var(--text-small);
+}
+
+.top-bar__nav a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.top-bar__nav a:hover {
+  color: var(--brand-primary);
+}
+
+/* ---- forms ---------------------------------------------------------------------------------- */
+form {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 420px;
+}
+
+form label {
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  margin-top: var(--space-3);
+}
+
+form input,
+form select,
+form textarea {
+  font: inherit;
+  font-size: var(--text-body);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+form textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+form button {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--brand-primary);
+  color: var(--text-on-fill);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  width: fit-content;
+}
+
+form button:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+form button:disabled {
+  background: var(--border-strong);
+  cursor: not-allowed;
+}
+
+/* ---- plain button (not inside a form) -------------------------------------------------------- */
+button.link-button {
+  background: none;
+  border: none;
+  color: var(--brand-primary);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ---- participant list ------------------------------------------------------------------------ */
+ul[aria-label="Participants"] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+ul[aria-label="Participants"] li {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-default);
+}
