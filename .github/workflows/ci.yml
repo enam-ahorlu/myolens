@@ -366,6 +366,38 @@ jobs:
             echo "::warning::Expected 401 from an unauthenticated signing request, got $CODE"
           fi
 
+      - name: The bucket must allow a browser to upload to it
+        # ADR-002 sends the recording from the browser straight to the bucket, which makes the
+        # upload a cross-origin request. A bucket has no CORS policy by default, so the preflight
+        # returns 200 with no Access-Control-Allow-Origin and Chrome refuses to send the PUT.
+        #
+        # Every test level below this one misses it: the suites use a fake object store, and both
+        # seed_demo_data.py and run_uat.py upload from Python, which has no same-origin policy.
+        # All seven jobs were green while a clinician could not upload a single file. See
+        # infra/README.md.
+        #
+        # Apply, then prove -- a step that ran is not a policy that works.
+        run: |
+          set -euo pipefail
+          BUCKET="${{ secrets.GCP_STORAGE_BUCKET }}"
+          gcloud storage buckets update "gs://$BUCKET" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --cors-file=infra/storage-cors.json
+          ORIGIN="https://myolens.web.app"
+          HEADERS=$(curl -s -D - -o /dev/null -X OPTIONS \
+            "https://storage.googleapis.com/$BUCKET/preflight-probe.csv" \
+            -H "Origin: $ORIGIN" \
+            -H "Access-Control-Request-Method: PUT" \
+            -H "Access-Control-Request-Headers: content-type")
+          echo "$HEADERS"
+          if ! echo "$HEADERS" | grep -qi "access-control-allow-origin: $ORIGIN"; then
+            echo "::error::The bucket does not answer a browser preflight from $ORIGIN. Every "\
+                 "upload from the application will fail with the PUT blocked by the browser, "\
+                 "while the API, the seed script and this whole pipeline stay green."
+            exit 1
+          fi
+          echo "OK  the bucket allows $ORIGIN to PUT with a Content-Type header"
+
       - name: Record the URL
         run: |
           echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
