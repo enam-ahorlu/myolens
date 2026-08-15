@@ -21,6 +21,13 @@ from app.serving.onnx_predictor import CLASSES, get_ensemble
 
 router = APIRouter(tags=["operations"])
 
+#: Frozen thesis results, not derivable from the manifest, which records only held-out figures.
+#: 0.858 is the soft-vote ensemble under transductive per-subject normalisation, LOSO over 40
+#: subjects -- the configuration this service serves. 0.817 is the same models under causal
+#: normalisation and describes a system MyoLens is not.
+LOSO_TRANSDUCTIVE_MACRO_F1 = 0.858
+LOSO_CAUSAL_MACRO_F1 = 0.817
+
 #: The public statement, verbatim from SRS §2.2 -- "This statement ships in the product, on
 #: every screen and in every export." The model card is one more place it ships.
 INTENDED_USE_STATEMENT = (
@@ -40,11 +47,31 @@ INTENDED_USE_STATEMENT = (
 
 
 class AccuracyRegime(BaseModel):
+    """A held-out figure for one predictor configuration. Indicative at n = 3 (SRS §6)."""
+
     predictor: PredictorMode
     label: str
     macro_f1: float
     balanced_acc: float
     n_windows: int
+
+
+class LosoRegime(BaseModel):
+    """A leave-one-subject-out figure, with the normalisation regime that produced it.
+
+    This is what FR-09 means by "accuracy reported with its measurement regime named", and what
+    H1 means by "both accuracy regimes labelled". The card previously carried only the held-out
+    numbers, which are measured on three subjects and run *higher* than the LOSO figures -- so a
+    reader saw 0.876 beside "the default" and had no way to reach the defensible 0.858 at n = 40.
+    Reporting the optimistic number alone, without the protocol that makes it optimistic, is the
+    exact failure NFR-04 exists to prevent.
+    """
+
+    regime: str
+    label: str
+    macro_f1: float
+    n_subjects: int
+    describes_this_system: bool
 
 
 class HeldOutValidation(BaseModel):
@@ -68,6 +95,8 @@ class ModelCardResponse(BaseModel):
     active_predictor: PredictorMode
     active_version: str
     active_sha256: str
+    #: The headline figures, at n = 40. Listed first because they are the defensible ones.
+    loso_accuracy: list[LosoRegime]
     accuracy_regimes: list[AccuracyRegime]
     held_out_validation: HeldOutValidation
     training_protocol: TrainingProtocol
@@ -128,17 +157,49 @@ def current_model_card() -> ModelCardResponse:
         active_predictor=settings.predictor,
         active_version=active_version,
         active_sha256=active_sha256,
+        loso_accuracy=[
+            LosoRegime(
+                regime="transductive",
+                label=(
+                    "Leave-one-subject-out over 40 subjects, normalisation statistics computed "
+                    "over the whole recording being analysed. This is the regime MyoLens runs "
+                    "in (FR-01), and this is the figure that describes it."
+                ),
+                macro_f1=LOSO_TRANSDUCTIVE_MACRO_F1,
+                n_subjects=40,
+                describes_this_system=True,
+            ),
+            LosoRegime(
+                regime="causal",
+                label=(
+                    "The same models with statistics estimated from past samples only, as a "
+                    "real-time system would have to. Reported so the transductive figure cannot "
+                    "be mistaken for a streaming one; MyoLens does not run in this regime "
+                    "(TD-02)."
+                ),
+                macro_f1=LOSO_CAUSAL_MACRO_F1,
+                n_subjects=40,
+                describes_this_system=False,
+            ),
+        ],
         accuracy_regimes=[
             AccuracyRegime(
                 predictor=PredictorMode.SVM_ONLY,
-                label="SVM only (Freq-72) -- the fallback, not the default",
+                label=(
+                    "SVM only (Freq-72) -- the fallback, not the default. Held out, n = 3 "
+                    "subjects: indicative, not a substitute for the LOSO figure above."
+                ),
                 macro_f1=svm_holdout["macro_f1"],
                 balanced_acc=svm_holdout["balanced_acc"],
                 n_windows=svm_holdout["n_windows"],
             ),
             AccuracyRegime(
                 predictor=PredictorMode.ENSEMBLE,
-                label="SVM + ResNet-SE+CD soft-vote ensemble -- the default",
+                label=(
+                    "SVM + ResNet-SE+CD soft-vote ensemble -- the default. Held out, n = 3 "
+                    "subjects: indicative, and higher than the n = 40 LOSO figure above, which "
+                    "is the one to quote."
+                ),
                 macro_f1=ensemble_holdout["macro_f1"],
                 balanced_acc=ensemble_holdout["balanced_acc"],
                 n_windows=ensemble_holdout["n_windows"],

@@ -20,6 +20,22 @@ const CARD: ModelCard = {
   active_predictor: "ensemble",
   active_version: "ensemble-1.0.0",
   active_sha256: "a".repeat(64),
+  loso_accuracy: [
+    {
+      regime: "transductive",
+      label: "LOSO over 40 subjects, statistics from the whole recording. What this runs.",
+      macro_f1: 0.858,
+      n_subjects: 40,
+      describes_this_system: true,
+    },
+    {
+      regime: "causal",
+      label: "Past samples only, as a streaming system would have to. Not this system.",
+      macro_f1: 0.817,
+      n_subjects: 40,
+      describes_this_system: false,
+    },
+  ],
   accuracy_regimes: [
     {
       predictor: "svm_only",
@@ -115,5 +131,18 @@ describe("ModelCardPage", () => {
     renderPage();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong.");
+  });
+
+  // FR-09/NFR-04 on the surface an examiner reads. The page used to head the held-out table
+  // "Accuracy, both regimes" and caption it as satisfying FR-09 -- but those are two *predictor*
+  // configurations measured on three subjects, not the two *normalisation* regimes FR-09 names,
+  // and the number shown ran higher than the defensible one.
+  it("leads with the leave-one-subject-out figures and marks the held-out check as indicative", async () => {
+    getModelCard.mockResolvedValue(CARD);
+    renderPage();
+    expect(await screen.findByRole("heading", { name: /leave-one-subject-out/i })).toBeInTheDocument();
+    expect(screen.getByText("0.858")).toBeInTheDocument();
+    expect(screen.getByText("0.817")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /indicative only/i })).toBeInTheDocument();
   });
 });

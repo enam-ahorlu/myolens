@@ -256,6 +256,15 @@ export interface AccuracyRegime {
   n_windows: number;
 }
 
+/** A leave-one-subject-out figure with the normalisation regime that produced it (FR-09). */
+export interface LosoRegime {
+  regime: string;
+  label: string;
+  macro_f1: number;
+  n_subjects: number;
+  describes_this_system: boolean;
+}
+
 export interface HeldOutValidation {
   holdout_subjects: number[];
   training_subjects_n: number;
@@ -277,6 +286,7 @@ export interface ModelCard {
   active_predictor: PredictorMode;
   active_version: string;
   active_sha256: string;
+  loso_accuracy: LosoRegime[];
   accuracy_regimes: AccuracyRegime[];
   held_out_validation: HeldOutValidation;
   training_protocol: TrainingProtocol;

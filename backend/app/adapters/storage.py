@@ -114,10 +114,21 @@ class GcsObjectStore:
         credentials, _ = google.auth.default()
         if getattr(credentials, "signer", None) is not None:
             return {}  # a real private key is present; sign locally
-        email = getattr(credentials, "service_account_email", None)
-        if not email:
-            return {}
+
+        # Refresh BEFORE reading the email. On Cloud Run the credentials are constructed with
+        # service_account_email set to the metadata alias "default", and only a refresh replaces
+        # it with the real address. Reading it first sends the literal string "default" to the
+        # IAM API, which answers:
+        #
+        #   400 Invalid form of account ID default.
+        #   Should be [Gaia ID |Email |Unique ID |] of the account
+        #
+        # -- which is what production did, and which looks exactly like a missing permission
+        # until the message is read carefully.
         credentials.refresh(google_requests.Request())
+        email = getattr(credentials, "service_account_email", None)
+        if not email or email == "default":
+            return {}
         return {"service_account_email": email, "access_token": credentials.token}
 
     def signed_upload_url(self, object_name: str, content_type: str) -> str:

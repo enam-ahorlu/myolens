@@ -61,3 +61,29 @@ def test_model_card_names_failure_modes_and_intended_use():
 
 def test_every_response_carries_a_request_id():
     assert client.get("/v1/models/current").headers["X-Request-ID"]
+
+
+def test_the_card_reports_the_loso_figures_with_their_regimes_named():
+    """FR-09 and NFR-04, on the surface an examiner actually reads.
+
+    The card previously carried only the held-out numbers -- measured on three subjects, and
+    *higher* than the LOSO figures. A reader saw 0.876 beside "the default" with no route to the
+    defensible 0.858 at n = 40. Reporting the optimistic figure alone, without the protocol that
+    makes it optimistic, is precisely what NFR-04 exists to prevent, and H1 asks for "both
+    accuracy regimes labelled".
+    """
+    body = response_body()
+
+    regimes = {r["regime"]: r for r in body["loso_accuracy"]}
+    assert set(regimes) == {"transductive", "causal"}
+    assert regimes["transductive"]["macro_f1"] == 0.858
+    assert regimes["causal"]["macro_f1"] == 0.817
+    assert all(r["n_subjects"] == 40 for r in regimes.values())
+
+    # Exactly one of them describes what is deployed, and it is the transductive one (FR-01).
+    assert regimes["transductive"]["describes_this_system"] is True
+    assert regimes["causal"]["describes_this_system"] is False
+
+    # The held-out figures survive, but must now say what they are.
+    for regime in body["accuracy_regimes"]:
+        assert "n = 3" in regime["label"], regime["label"]

@@ -57,11 +57,42 @@ export function ModelCardPage() {
           </section>
 
           <section className="card">
-            <h3 className="card__title">Accuracy, both regimes</h3>
+            <h3 className="card__title">Accuracy — leave-one-subject-out, 40 subjects</h3>
             <table>
               <thead>
                 <tr>
-                  <th>Regime</th>
+                  <th>Normalisation regime</th>
+                  <th>Macro-F1</th>
+                  <th>Describes this system</th>
+                </tr>
+              </thead>
+              <tbody>
+                {card.loso_accuracy.map((regime) => (
+                  <tr key={regime.regime}>
+                    <td>
+                      <strong>{regime.regime}</strong>
+                      <br />
+                      <span className="muted">{regime.label}</span>
+                    </td>
+                    <td>{regime.macro_f1.toFixed(3)}</td>
+                    <td>{regime.describes_this_system ? "Yes" : "No"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">
+              These are the figures to quote. FR-09 requires an accuracy figure to carry the
+              regime that produced it, because the two differ by 4.1 percentage points and only
+              one of them describes what this service runs.
+            </p>
+          </section>
+
+          <section className="card">
+            <h3 className="card__title">Held-out check — 3 subjects, indicative only</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Configuration</th>
                   <th>Macro-F1</th>
                   <th>Balanced accuracy</th>
                   <th>Windows evaluated</th>
@@ -79,8 +110,10 @@ export function ModelCardPage() {
               </tbody>
             </table>
             <p className="muted">
-              Both figures are transductive, per-session held-out validation -- see "Held-out
-              validation" below and FR-09.
+              An independent check that the deployed artefacts behave, on three subjects withheld
+              from their training set. It runs <em>higher</em> than the leave-one-subject-out
+              figure above, which is what three subjects can do — it is indicative, not a
+              substitute for the n = 40 result.
             </p>
           </section>
 
