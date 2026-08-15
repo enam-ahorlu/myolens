@@ -302,7 +302,7 @@ marginal cost is near zero.
 
 | ID | Requirement | Pri | Acceptance |
 |---|---|---|---|
-| C1 | Upload a labelled calibration capture per task | Must | Non-conformant → 422 naming the failing field |
+| C1 | Upload a labelled calibration capture per task | Must | Non-conformant (montage mismatch or missing `label` column) → 409, `MONTAGE_REJECTED`, naming every violating field -- the same refusal D3 uses for the same failure class, deliberately, so a clinician sees one behaviour for "this recording doesn't match the montage" everywhere in the product |
 | C2 | Per-task sufficiency: ≥20 windows across ≥3 non-contiguous blocks | Must | Both counts shown per task; both must pass |
 | C3 | Persist the per-channel peak calibration envelope as the %CAL reference | Must | One stored vector of nine values |
 | C4 | **OOD guard** — Mahalanobis distance against the pooled training distribution; above threshold, refuse | Must | Out-of-range fixture triggers refusal; asserted by test |

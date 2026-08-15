@@ -51,10 +51,12 @@ from app.errors import (
     MyoLensError,
     NotCalibrated,
     NotFound,
+    RateLimited,
     SegmentationLocked,
     SegmentationNotApproved,
     SegmentationNotReady,
 )
+from app.middleware.rate_limit import InProcessRateLimiter, get_rate_limiter
 from app.routers.session_report import render_session_report_pdf
 from app.serving.onnx_predictor import get_ensemble
 
@@ -221,6 +223,7 @@ class SessionMetricsOut(BaseModel):
 StoreDep = Annotated[DocumentStore, Depends(get_document_store)]
 UserDep = Annotated[CurrentUser, Depends(get_current_user)]
 ObjectStoreDep = Annotated[ObjectStore, Depends(get_object_store)]
+RateLimiterDep = Annotated[InProcessRateLimiter, Depends(get_rate_limiter)]
 
 
 def _write_audit(store: DocumentStore, entry: audit.AuditEntry) -> None:
@@ -313,10 +316,20 @@ def create_session(
     summary="Run automatic segmentation over an uploaded session",
 )
 def segment_session(
-    session_id: str, user: UserDep, store: StoreDep, objects: ObjectStoreDep
+    session_id: str,
+    user: UserDep,
+    store: StoreDep,
+    objects: ObjectStoreDep,
+    limiter: RateLimiterDep,
 ) -> SegmentationOut:
-    session = _load_session(store, user, session_id)
+    # I3: segmentation is the only genuinely expensive route -- checked first, before the
+    # session even loads, so a caller over the ceiling is refused as cheaply as possible.
     settings = get_settings()
+    allowed, _remaining = limiter.check(user.uid)
+    if not allowed:
+        raise RateLimited(settings.rate_limit_per_hour)
+
+    session = _load_session(store, user, session_id)
 
     calibration = load_active(store, session.participant_id)
     calibrated = _calibrated_tasks(calibration)

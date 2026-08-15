@@ -181,6 +181,49 @@ def test_create_reports_per_task_sufficiency_and_persists_a_calibration_record()
     _reset()
 
 
+def test_create_rejects_a_non_conformant_capture_c1():
+    """C1: a calibration capture that doesn't match the montage contract is refused with 409,
+    MONTAGE_REJECTED, naming every violating field -- the same refusal D3 uses for a session
+    upload, since it is the same failure class (see SRS §4.2 C1)."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    bad_csv = _synthetic_calibration_csv().replace(b"sEMG: soleus", b"sEMG: not-a-channel")
+    objects.put("calibration/p1/bad.csv", bad_csv)
+    client = _client_as(CLINICIAN_A, store, objects)
+
+    response = client.post(
+        "/v1/calibrations",
+        json={"participant_id": participant_id, "object_name": "calibration/p1/bad.csv"},
+    )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["code"] == "montage_rejected"
+    assert body["details"]  # names the violating field(s)
+    _reset()
+
+
+def test_create_rejects_a_capture_missing_the_label_column_c1():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    csv_without_label = _synthetic_calibration_csv().replace(b",label", b",not_label")
+    objects.put("calibration/p1/no-label.csv", csv_without_label)
+    client = _client_as(CLINICIAN_A, store, objects)
+
+    response = client.post(
+        "/v1/calibrations",
+        json={"participant_id": participant_id, "object_name": "calibration/p1/no-label.csv"},
+    )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["code"] == "montage_rejected"
+    assert any(v.get("reason") == "missing_label_column" for v in body["details"])
+    _reset()
+
+
 def test_create_writes_an_audit_entry():
     store = FakeDocumentStore()
     objects = FakeObjectStore()

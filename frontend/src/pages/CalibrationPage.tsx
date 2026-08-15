@@ -13,9 +13,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api, type CalibrationOut } from "../lib/api";
+import { StatusChip, type StatusTone } from "../components/StatusChip";
 import { TASKS, TASK_LABEL } from "../lib/tasks";
 
 type Phase = "idle" | "signing" | "uploading" | "registering";
+
+/** B3: four per-task calibration badges, sharing the same tinted-chip register every other
+ * status in the product uses (StatusChip) rather than plain table text, so "calibrated" reads
+ * the same way here as "verified" does on a bout. */
+const CALIBRATION_STATUS: Record<string, { tone: StatusTone; label: string }> = {
+  calibrated: { tone: "verified", label: "Calibrated" },
+  insufficient: { tone: "advisory", label: "Insufficient" },
+  not_attempted: { tone: "excluded", label: "Not attempted" },
+};
+
+export function CalibrationStatusBadge({ status }: { status: string }) {
+  const entry = CALIBRATION_STATUS[status] ?? { tone: "excluded" as StatusTone, label: status };
+  return <StatusChip tone={entry.tone} label={entry.label} />;
+}
 
 export function CalibrationPage() {
   const { participantId } = useParams<{ participantId: string }>();
@@ -128,7 +143,9 @@ export function CalibrationPage() {
                     <td>{TASK_LABEL[task]}</td>
                     <td>{summary?.window_count ?? 0}</td>
                     <td>{summary?.block_count ?? 0}</td>
-                    <td>{summary ? summary.status : "not captured"}</td>
+                    <td>
+                      <CalibrationStatusBadge status={summary ? summary.status : "not_attempted"} />
+                    </td>
                   </tr>
                 );
               })}

@@ -286,6 +286,16 @@ describe("SessionPage", () => {
     expect(screen.queryByRole("button", { name: /run segmentation/i })).not.toBeInTheDocument();
   });
 
+  it("sorts bouts least-certain first (E2) and labels the ordering", async () => {
+    await getToReview();
+
+    // b2 (0.40 confidence) starts later than b1 (0.91 confidence) but must render first.
+    const rows = screen.getAllByRole("row").filter((r) => r.getAttribute("aria-label"));
+    expect(rows[0]).toHaveAttribute("aria-label", "Bout b2");
+    expect(rows[1]).toHaveAttribute("aria-label", "Bout b1");
+    expect(screen.getByRole("note")).toHaveTextContent(/sorted least-certain first/i);
+  });
+
   it("relabels a bout and reflects the correction", async () => {
     await getToReview();
 

@@ -22,6 +22,7 @@ from app.domain.calibration_record import TaskCalibrationSummary, new_calibratio
 from app.domain.montage import MONTAGE
 from app.domain.participants import AffectedSide, AgeBand, Sex, new_participant
 from app.main import app
+from app.middleware.rate_limit import InProcessRateLimiter, get_rate_limiter
 from app.routers import sessions as sessions_module
 from app.serving.predictor import CLASSES, Prediction
 from tests.fakes import FakeDocumentStore
@@ -79,6 +80,10 @@ def _client_as(user: CurrentUser, store: FakeDocumentStore, objects: FakeObjectS
     app.dependency_overrides[get_current_user] = lambda: user
     app.dependency_overrides[get_document_store] = lambda: store
     app.dependency_overrides[get_object_store] = lambda: objects
+    # A fresh, generously-limited limiter per test -- the same isolation discipline as the fake
+    # document/object stores above. I3's own behaviour is exercised by overriding this again,
+    # deliberately low, in the two rate-limit tests below.
+    app.dependency_overrides[get_rate_limiter] = lambda: InProcessRateLimiter(limit_per_hour=1000)
     return TestClient(app)
 
 
@@ -269,6 +274,55 @@ def test_a_clinician_cannot_segment_another_clinician_s_session():
     other_client = _client_as(CLINICIAN_B, store, objects)
     response = other_client.post(f"/v1/sessions/{created['id']}/segment")
 
+    assert response.status_code == 404
+    _reset()
+
+
+def test_segment_is_rate_limited_per_user_i3():
+    """I3: segmentation is refused with 429 once a user exceeds the per-hour ceiling, and the
+    limiter is checked before the calibration/montage/inference work runs at all."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store)
+    _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
+    objects.put("session/p1/one.csv", _session_csv())
+    client = _client_as(CLINICIAN_A, store, objects)
+    limiter = InProcessRateLimiter(limit_per_hour=1)  # one instance, so hits actually accumulate
+    app.dependency_overrides[get_rate_limiter] = lambda: limiter
+
+    created = client.post(
+        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+    ).json()
+
+    first = client.post(f"/v1/sessions/{created['id']}/segment")
+    second = client.post(f"/v1/sessions/{created['id']}/segment")
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["code"] == "rate_limited"
+    _reset()
+
+
+def test_segment_rate_limit_is_tracked_per_user_not_globally_i3():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    participant_id = _register_participant(store, owner="clinician-a")
+    _give_active_calibration(store, participant_id, calibrated_tasks=("WAK", "STDUP"))
+    objects.put("session/p1/one.csv", _session_csv())
+    limiter = InProcessRateLimiter(limit_per_hour=1)  # one instance, so hits actually accumulate
+    app.dependency_overrides[get_rate_limiter] = lambda: limiter
+
+    owner_client = _client_as(CLINICIAN_A, store, objects)
+    created = owner_client.post(
+        "/v1/sessions", json={"participant_id": participant_id, "object_name": "session/p1/one.csv"}
+    ).json()
+    owner_client.post(f"/v1/sessions/{created['id']}/segment")  # consumes clinician-a's quota
+
+    other_client = _client_as(CLINICIAN_B, store, objects)
+    response = other_client.post(f"/v1/sessions/{created['id']}/segment")
+
+    # clinician-b's own quota is untouched; the 404 (not a 429) proves the request reached the
+    # ownership check, i.e. it was not rate-limited.
     assert response.status_code == 404
     _reset()
 

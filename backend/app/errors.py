@@ -209,6 +209,26 @@ class Forbidden(MyoLensError):
         )
 
 
+class RateLimited(MyoLensError):
+    """Segmentation is the only genuinely expensive route (I3); a caller over the per-user,
+    per-hour ceiling is refused rather than left to run the container's cost up unbounded.
+
+    See ``app/middleware/rate_limit.py`` and TD-07 for the honest scope of the guarantee this
+    provides: per process, not per deployment.
+    """
+
+    def __init__(self, limit_per_hour: int) -> None:
+        super().__init__(
+            status_code=429,
+            code=ErrorCode.RATE_LIMITED,
+            message=(
+                f"You have run segmentation more than {limit_per_hour} times in the last hour. "
+                "Try again later."
+            ),
+            details=[{"limit_per_hour": limit_per_hour}],
+        )
+
+
 class SessionTooLong(MyoLensError):
     """The recording exceeds the accepted duration."""
 

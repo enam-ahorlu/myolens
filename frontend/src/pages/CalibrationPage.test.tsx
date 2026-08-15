@@ -73,7 +73,8 @@ describe("CalibrationPage", () => {
 
     expect(await screen.findByText(/version 2/i)).toBeInTheDocument();
     expect(screen.getByText(/typical difficulty/)).toBeInTheDocument();
-    expect(screen.getByText("insufficient")).toBeInTheDocument();
+    expect(screen.getByText("Insufficient")).toBeInTheDocument();
+    expect(screen.getAllByText("Calibrated")).toHaveLength(3);
   });
 
   it("flags an out-of-distribution active calibration rather than hiding it", async () => {

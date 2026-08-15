@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from functools import lru_cache
+
+from app.config import get_settings
 
 
 class InProcessRateLimiter:
@@ -30,6 +33,13 @@ class InProcessRateLimiter:
             return False, 0
         hits.append(current)
         return True, self.limit - len(hits)
+
+
+@lru_cache(maxsize=1)
+def get_rate_limiter() -> InProcessRateLimiter:
+    """Process-wide singleton (I3), overridable in tests via FastAPI's dependency-override
+    mechanism -- the same discipline ``get_document_store``/``get_object_store`` use."""
+    return InProcessRateLimiter(limit_per_hour=get_settings().rate_limit_per_hour)
 
 
 # TODO(TD-07): this limiter is per process, and Cloud Run runs up to three instances.

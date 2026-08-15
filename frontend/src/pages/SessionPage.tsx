@@ -341,9 +341,21 @@ export function SessionPage() {
     }
   }
 
+  /** E2: least-certain first. A chronological queue would spend a clinician's attention
+   * uniformly across bouts the model is confident about; sorting by ascending confidence is
+   * the mechanism by which a 0.858 macro-F1 model becomes a usable review workflow (SRS §4.2
+   * E2), and it's what FR-07's "surfaced first for review" actually depends on. Excluded bouts
+   * (nothing left to review) sort to the end regardless of confidence; start_ms is a stable
+   * tie-breaker only, never the primary key. */
+  function byReviewPriority(a: BoutOut, b: BoutOut): number {
+    if (a.excluded !== b.excluded) return a.excluded ? 1 : -1;
+    if (a.mean_confidence !== b.mean_confidence) return a.mean_confidence - b.mean_confidence;
+    return a.start_ms - b.start_ms;
+  }
+
   function applySegmentation(result: SegmentationOut) {
     setSession(result.session);
-    setBouts([...result.bouts].sort((a, b) => a.start_ms - b.start_ms));
+    setBouts([...result.bouts].sort(byReviewPriority));
     setFlaggedCount(result.flagged_count);
   }
 
@@ -355,7 +367,7 @@ export function SessionPage() {
         if (index >= 0) kept[index] = updated;
         else kept.push(updated);
       }
-      const sorted = kept.sort((a, b) => a.start_ms - b.start_ms);
+      const sorted = kept.sort(byReviewPriority);
       setFlaggedCount(sorted.filter((b) => b.flagged && !b.excluded).length);
       return sorted;
     });
@@ -486,6 +498,12 @@ export function SessionPage() {
             {bouts.length} bout{bouts.length === 1 ? "" : "s"} · {flaggedCount} flagged for review
             {locked && " · locked, no further corrections"}
           </p>
+          {!locked && bouts.length > 1 && (
+            <p className="muted" role="note">
+              Sorted least-certain first, so the bouts most worth a second look come before the
+              ones the model is already confident about.
+            </p>
+          )}
           <table>
             <thead>
               <tr>

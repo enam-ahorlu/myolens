@@ -13,9 +13,12 @@ import {
   api,
   type AffectedSide,
   type AgeBand,
+  type CalibrationOut,
   type Participant,
   type Sex,
 } from "../lib/api";
+import { CalibrationStatusBadge } from "./CalibrationPage";
+import { TASKS, TASK_LABEL } from "../lib/tasks";
 
 const AGE_BANDS: AgeBand[] = ["under_18", "18_29", "30_44", "45_59", "60_74", "75_plus"];
 const SEXES: Sex[] = ["female", "male", "other", "undisclosed"];
@@ -30,6 +33,7 @@ export function ParticipantDetailPage() {
   const navigate = useNavigate();
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [calibration, setCalibration] = useState<CalibrationOut | null>(null);
 
   const [editing, setEditing] = useState(false);
   const [code, setCode] = useState("");
@@ -50,6 +54,13 @@ export function ParticipantDetailPage() {
       .catch((err: unknown) =>
         setError(err instanceof ApiError ? err.message : "Could not load this participant."),
       );
+    // B3: the four per-task calibration badges, so a clinician can see calibration readiness
+    // without leaving the participant page. A brand-new participant has none yet -- that's
+    // "not_calibrated", not a failure to report, same treatment as CalibrationPage gives it.
+    api
+      .getActiveCalibration(participantId)
+      .then(setCalibration)
+      .catch(() => setCalibration(null));
   }, [participantId]);
 
   function startEditing() {
@@ -119,6 +130,17 @@ export function ParticipantDetailPage() {
             {participant.difficulty_band ? ` · ${participant.difficulty_band} difficulty` : ""}
           </p>
           {participant.notes && <p>{participant.notes}</p>}
+          <div className="row" aria-label="Calibration status">
+            {TASKS.map((task) => {
+              const summary = calibration?.per_task[task];
+              return (
+                <span key={task} className="row" style={{ gap: "var(--space-2)" }}>
+                  <span className="muted">{TASK_LABEL[task]}</span>
+                  <CalibrationStatusBadge status={summary ? summary.status : "not_attempted"} />
+                </span>
+              );
+            })}
+          </div>
           <p>
             <Link to={`/participants/${participant.id}/calibration`}>Calibration &rarr;</Link>
           </p>

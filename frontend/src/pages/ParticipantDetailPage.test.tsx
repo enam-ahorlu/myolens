@@ -7,6 +7,7 @@ import { ParticipantDetailPage } from "./ParticipantDetailPage";
 const getParticipant = vi.fn();
 const editParticipant = vi.fn();
 const deleteParticipant = vi.fn();
+const getActiveCalibration = vi.fn();
 const navigate = vi.fn();
 
 vi.mock("react-router-dom", async () => {
@@ -25,6 +26,7 @@ vi.mock("../lib/api", async () => {
       getParticipant: (id: string) => getParticipant(id),
       editParticipant: (id: string, body: unknown) => editParticipant(id, body),
       deleteParticipant: (id: string) => deleteParticipant(id),
+      getActiveCalibration: (id: string) => getActiveCalibration(id),
     },
   };
 });
@@ -52,11 +54,15 @@ function renderPage() {
 
 describe("ParticipantDetailPage", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     getParticipant.mockReset();
     editParticipant.mockReset();
     deleteParticipant.mockReset();
+    getActiveCalibration.mockReset();
+    getActiveCalibration.mockRejectedValue(
+      new ApiError(404, "not_calibrated", "No calibration on record.", []),
+    );
     navigate.mockReset();
-    vi.restoreAllMocks();
   });
 
   it("renders the participant record", async () => {
@@ -64,6 +70,30 @@ describe("ParticipantDetailPage", () => {
     renderPage();
     expect(await screen.findByText("P-001")).toBeInTheDocument();
     expect(screen.getByText("Some notes.")).toBeInTheDocument();
+  });
+
+  it("shows the four per-task calibration badges (B3)", async () => {
+    getParticipant.mockResolvedValue(PARTICIPANT);
+    getActiveCalibration.mockResolvedValue({
+      id: "cal1",
+      participant_id: "p1",
+      version: 1,
+      active: true,
+      ood_flag: false,
+      difficulty_band: "typical",
+      envelope_peak: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+      per_task: {
+        DNS: { window_count: 30, block_count: 3, status: "calibrated", sufficient: true },
+        STDUP: { window_count: 5, block_count: 1, status: "insufficient", sufficient: false },
+      },
+    });
+    renderPage();
+
+    const status = await screen.findByLabelText("Calibration status");
+    expect(status).toHaveTextContent("Calibrated");
+    expect(status).toHaveTextContent("Insufficient");
+    // UPS/WAK never appeared in per_task at all -- still rendered, as not attempted.
+    expect(status).toHaveTextContent("Not attempted");
   });
 
   it("edits a participant and shows the saved result", async () => {
