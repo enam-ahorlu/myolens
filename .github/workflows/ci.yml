@@ -287,6 +287,7 @@ jobs:
             MYOLENS_ENVIRONMENT=production
             MYOLENS_GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
             MYOLENS_GCP_REGION=${{ secrets.GCP_REGION }}
+            MYOLENS_STORAGE_BUCKET=${{ secrets.GCP_STORAGE_BUCKET }}
             MYOLENS_PREDICTOR=ensemble
             OMP_NUM_THREADS=1
             MKL_NUM_THREADS=1
@@ -338,6 +339,32 @@ jobs:
               sys.exit(1)
           print("OK  deployed revision serves the frozen contract")
           CHECK
+
+      - name: The signing route must be wired and refusing anonymously
+        # Deliberately modest about what this proves. An unauthenticated request is refused by
+        # get_current_user before the object-store dependency is ever constructed, so this could
+        # NOT have caught the missing-bucket outage -- app/main.py's startup check does that, by
+        # refusing to start a production container that cannot accept an upload.
+        #
+        # What this does prove is that the revision came up and the route exists, which is worth
+        # a second. The signing path itself needs a real token and is exercised by
+        # scripts/seed_demo_data.py, which a human runs against the deployment.
+        run: |
+          set -euo pipefail
+          URL="${{ steps.deploy.outputs.url }}"
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL/v1/uploads/sign" \
+            -H 'Content-Type: application/json' \
+            -d '{"kind":"session","participant_id":"ci-probe"}')
+          echo "POST /v1/uploads/sign -> $CODE"
+          if [ "$CODE" = "500" ]; then
+            echo "::error::The upload-signing route returns 500. The service is deployed but "\
+                 "cannot accept recordings -- check MYOLENS_STORAGE_BUCKET and that the runtime "\
+                 "service account holds roles/iam.serviceAccountTokenCreator on itself."
+            exit 1
+          fi
+          if [ "$CODE" != "401" ]; then
+            echo "::warning::Expected 401 from an unauthenticated signing request, got $CODE"
+          fi
 
       - name: Record the URL
         run: |

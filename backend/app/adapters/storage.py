@@ -82,8 +82,43 @@ class GcsObjectStore:
     def __init__(self, bucket_name: str) -> None:
         from google.cloud import storage  # deferred: see FirestoreDocumentStore's rationale
 
+        if not bucket_name:
+            # Fail here, at construction, rather than at the first upload. The bucket name comes
+            # from MYOLENS_STORAGE_BUCKET and defaults to the empty string, so a deployment that
+            # simply forgets to set it produced a store that looked fine, answered /v1/health
+            # perfectly, and returned 500 from every signed-URL request -- which is exactly what
+            # happened, and survived because every test substitutes a fake object store.
+            raise RuntimeError(
+                "MYOLENS_STORAGE_BUCKET is not set. The API cannot mint upload URLs without a "
+                "bucket, so uploads would fail at the first request rather than at startup."
+            )
         self._client = storage.Client()
         self._bucket = self._client.bucket(bucket_name)
+
+    @lru_cache(maxsize=1)  # noqa: B019 -- one store per process; see get_object_store
+    def _iam_signing_kwargs(self) -> dict[str, str]:
+        """Extra arguments that let a keyless runtime sign a URL, or ``{}`` if it can sign itself.
+
+        V4 signing needs a private key. A service-account *key file* has one, which is why this
+        works on a developer's machine. Cloud Run does not: its Application Default Credentials
+        come from the metadata server and carry a bearer token and no key, so
+        ``generate_signed_url`` raises "you need a private key to sign credentials".
+
+        Passing ``service_account_email`` and ``access_token`` makes the client library sign
+        through the IAM ``signBlob`` API instead of locally. That requires the runtime service
+        account to hold ``roles/iam.serviceAccountTokenCreator`` **on itself**.
+        """
+        import google.auth
+        from google.auth.transport import requests as google_requests
+
+        credentials, _ = google.auth.default()
+        if getattr(credentials, "signer", None) is not None:
+            return {}  # a real private key is present; sign locally
+        email = getattr(credentials, "service_account_email", None)
+        if not email:
+            return {}
+        credentials.refresh(google_requests.Request())
+        return {"service_account_email": email, "access_token": credentials.token}
 
     def signed_upload_url(self, object_name: str, content_type: str) -> str:
         blob = self._bucket.blob(object_name)
@@ -92,6 +127,7 @@ class GcsObjectStore:
             expiration=SIGNED_URL_TTL_SECONDS,
             method="PUT",
             content_type=content_type,
+            **self._iam_signing_kwargs(),
         )
 
     def read_bytes(self, object_name: str) -> bytes:

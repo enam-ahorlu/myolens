@@ -56,8 +56,40 @@ logging.basicConfig(level=logging.INFO, handlers=[_handler], force=True)
 logger = logging.getLogger("myolens")
 
 
+def _require_deployable_configuration(settings) -> None:
+    """Refuse to start a production container that cannot do its job.
+
+    MYOLENS_STORAGE_BUCKET was missing from the Cloud Run deployment and nothing noticed. The
+    service started, answered /v1/health with "ok", served the front end, authenticated users and
+    created participants -- and returned 500 from every upload, because the object store was
+    constructed lazily, on the first request that needed it, against a bucket with no name.
+
+    Failing here converts that into a revision that never becomes healthy, which Cloud Run reports
+    as a failed deploy. A misconfiguration should cost a red pipeline, not a silently useless
+    service. Development is exempt: a local `uvicorn` for front-end work has no bucket and does
+    not need one.
+    """
+    if settings.environment != "production":
+        return
+    missing = [
+        name
+        for name, value in (
+            ("MYOLENS_STORAGE_BUCKET", settings.storage_bucket),
+            ("MYOLENS_GCP_PROJECT_ID", settings.gcp_project_id),
+        )
+        if not value
+    ]
+    if missing:
+        raise RuntimeError(
+            "Refusing to start in production without "
+            + ", ".join(missing)
+            + ". The service would answer /v1/health perfectly and fail every upload."
+        )
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
+    _require_deployable_configuration(settings)
 
     app = FastAPI(
         title="MyoLens API",

@@ -356,3 +356,66 @@ def test_rate_limits_remain_per_user():
     assert limiter.check("clinician-a", bucket=BUCKET_SESSION_CREATE)[0] is True
     assert limiter.check("clinician-a", bucket=BUCKET_SESSION_CREATE)[0] is False
     assert limiter.check("clinician-b", bucket=BUCKET_SESSION_CREATE)[0] is True
+
+
+# --- deployment configuration -------------------------------------------------------------------
+
+
+def test_an_unconfigured_bucket_fails_at_construction_not_at_the_first_upload():
+    """Regression, and the most expensive defect found in this project.
+
+    ``MYOLENS_STORAGE_BUCKET`` was absent from the Cloud Run deployment, so ``storage_bucket``
+    took its empty-string default. The service started, answered ``/v1/health`` with a cheerful
+    ``{"status":"ok"}``, served the front end, authenticated users and created participants --
+    and returned 500 from every single upload. It had never accepted a recording in production.
+
+    Nothing caught it because every test in this suite substitutes a fake object store, so the
+    one line that reads the setting was never executed outside a developer's machine. The store
+    now refuses to exist without a bucket, which turns a per-request 500 into a startup failure
+    that a deploy cannot ignore.
+    """
+    from app.adapters.storage import GcsObjectStore
+
+    with pytest.raises(RuntimeError, match="MYOLENS_STORAGE_BUCKET"):
+        GcsObjectStore("")
+
+
+def test_production_refuses_to_start_without_the_storage_configuration():
+    """The startup check that would actually have caught the outage.
+
+    The unauthenticated CI probe could not: ``get_current_user`` refuses before the object-store
+    dependency is ever constructed, so a request without a token never touches the setting. Only
+    a check at start-up turns a missing variable into a revision that fails to become healthy,
+    which Cloud Run reports as a failed deploy.
+    """
+    from app.config import Settings
+    from app.main import _require_deployable_configuration
+
+    with pytest.raises(RuntimeError, match="MYOLENS_STORAGE_BUCKET"):
+        _require_deployable_configuration(
+            Settings(environment="production", storage_bucket="", gcp_project_id="myolens")
+        )
+
+    # Development is exempt: a local uvicorn for front-end work has no bucket and needs none.
+    _require_deployable_configuration(
+        Settings(environment="development", storage_bucket="", gcp_project_id="")
+    )
+    # A fully configured production deployment passes.
+    _require_deployable_configuration(
+        Settings(environment="production", storage_bucket="b", gcp_project_id="myolens")
+    )
+
+
+def test_health_does_not_imply_the_service_can_accept_an_upload():
+    """The lesson, written down as an assertion.
+
+    ``/v1/health`` reports the predictor, the class set and the montage contract -- everything
+    except whether the storage the workflow depends on is reachable. It was green throughout the
+    outage above. This test exists so nobody later concludes that a green health check means a
+    working system; the deploy job now probes the signing route for that.
+    """
+    store, objects = FakeDocumentStore(), RecordingObjectStore()
+    client = _client_as(CLINICIAN_A, store, objects)
+    body = client.get("/v1/health").json()
+    assert "storage" not in body
+    assert body["status"] == "ok"
