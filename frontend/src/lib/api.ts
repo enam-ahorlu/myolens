@@ -11,6 +11,20 @@ import { getFirebaseAuth } from "./firebase";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+/**
+ * What the two upload file pickers offer.
+ *
+ * Both halves of the decision have to agree: `contentTypeFor` below already returns
+ * `application/gzip` for a `.gz` name, the signed URL is minted for that type, and the API reads
+ * plain or gzipped CSV (D1). The `accept` attribute did not, so the native picker greyed out
+ * every recording the product actually ships -- the demo captures in `backend/artifacts/demo/`
+ * are all `.csv.gz`. Exported from one place so the two screens cannot drift apart again.
+ *
+ * `accept` is a filter, not a guarantee: a caller can still choose "all files". The montage and
+ * content-type checks on the server are what refuse a bad upload, and they are unchanged.
+ */
+export const UPLOAD_ACCEPT = ".csv,.gz,.csv.gz,text/csv,application/gzip";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;

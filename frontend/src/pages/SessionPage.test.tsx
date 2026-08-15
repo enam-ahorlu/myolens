@@ -435,3 +435,11 @@ describe("SessionPage", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("SessionPage file picker", () => {
+  it("offers gzipped recordings, which is all the demo data is", async () => {
+    renderPage();
+    const input = await screen.findByLabelText(/session recording csv/i);
+    expect(input.getAttribute("accept")).toContain(".gz");
+  });
+});

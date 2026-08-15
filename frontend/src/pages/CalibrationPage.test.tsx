@@ -176,3 +176,14 @@ describe("CalibrationPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/flagged out-of-distribution/i);
   });
 });
+
+describe("CalibrationPage file picker", () => {
+  it("offers gzipped captures, which is all the demo data is", async () => {
+    getActiveCalibration.mockRejectedValue(
+      new ApiError(412, "not_calibrated", "This participant has no completed calibration.", []),
+    );
+    renderPage();
+    const input = await screen.findByLabelText(/calibration csv/i);
+    expect(input.getAttribute("accept")).toContain(".gz");
+  });
+});

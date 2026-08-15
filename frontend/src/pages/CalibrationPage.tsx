@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ApiError, api, type CalibrationOut } from "../lib/api";
+import { ApiError, UPLOAD_ACCEPT, api, type CalibrationOut } from "../lib/api";
 import { StatusChip, type StatusTone } from "../components/StatusChip";
 import { TASKS, TASK_LABEL } from "../lib/tasks";
 
@@ -169,7 +169,7 @@ export function CalibrationPage() {
           <input
             id="calibration-file"
             type="file"
-            accept=".csv,text/csv"
+            accept={UPLOAD_ACCEPT}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             disabled={busy}
           />

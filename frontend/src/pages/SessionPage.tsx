@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ApiError,
+  UPLOAD_ACCEPT,
   api,
   type BoutCorrectionOut,
   type BoutOut,
@@ -459,7 +460,11 @@ export function SessionPage() {
           <input
             id="session-file"
             type="file"
-            accept=".csv,text/csv"
+            // Gzip belongs here because the rest of this component already knows about it:
+            // contentTypeFor() returns application/gzip for a .gz name, the signed URL is minted
+            // for that type, and the backend reads either. Omitting it here made the file picker
+            // grey out the only recordings the product ships.
+            accept={UPLOAD_ACCEPT}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             disabled={busy}
           />

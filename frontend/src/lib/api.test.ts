@@ -100,3 +100,17 @@ describe("contentTypeFor", () => {
     expect(api.contentTypeFor("weird-name-no-extension")).toBe("text/csv");
   });
 });
+
+describe("UPLOAD_ACCEPT", () => {
+  // Found by walking the deployed app as the examiner will: the file picker on both upload
+  // screens was accept=".csv,text/csv", so every recording the product ships -- the demo
+  // captures in backend/artifacts/demo/ are all .csv.gz -- was greyed out and unselectable.
+  // contentTypeFor above already knew about gzip, the signed URL is minted for it, and the API
+  // reads it. Only the picker disagreed, and nothing tested the picker.
+  it("offers the gzipped recordings the rest of the upload path already handles", async () => {
+    const { UPLOAD_ACCEPT } = await import("./api");
+    expect(UPLOAD_ACCEPT).toContain(".gz");
+    expect(UPLOAD_ACCEPT).toContain("application/gzip");
+    expect(UPLOAD_ACCEPT).toContain(".csv");
+  });
+});
