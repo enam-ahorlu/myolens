@@ -46,6 +46,12 @@ backend/artifacts/*.npz
 !backend/artifacts/ood_stats.npz
 !backend/artifacts/reference_outputs.npz
 
+# Demonstration recordings for the three held-out subjects, with their bout-level ground truth.
+# Tracked deliberately, ~3 MB: D6's bout-coherence result (backend/tests/test_smoothing_effect.py)
+# is measured against them, and a reported number an examiner cannot re-run is an assertion rather
+# than a result. The recordings are SIAT-LLMD (Wei et al., 2023), CC0 1.0 public domain, so there
+# is no licence obstacle to redistributing them here.
+
 # OS
 .DS_Store
 Thumbs.db

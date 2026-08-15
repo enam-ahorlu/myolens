@@ -349,9 +349,30 @@ marginal cost is near zero.
 | D7 | Bout construction from smoothed labels | Must | Adjacent same-label windows merge; start, end and mean confidence recorded |
 | D8 | Review flags: DNS↔WAK margin < 0.15, or bout confidence < 0.60 | Must | Flagged bouts surface first |
 
-D6 is a **named contribution**, not plumbing. Its effect on bout coherence against the unsmoothed
-baseline is measured and reported in the Testing Report — the thesis stops at window level, so
-that number is new.
+D6 is a **named contribution**, not plumbing, and its effect has been measured rather than
+asserted. The thesis evaluates classification at *window* level only; it never asks what those
+labels look like once assembled into bouts, because it was not building a review workflow. That
+measurement is therefore new evidence this system produces.
+
+**Measured over the three held-out subjects** (`backend/tests/test_smoothing_effect.py`, 597
+windows, 22 true bouts, reproducible with `pytest backend/tests/test_smoothing_effect.py -s`):
+
+| | Unsmoothed | With D6 |
+|---|---|---|
+| Bouts produced (review workload) | 130 | **17** — 86.9% fewer |
+| Fragments per true bout | 6.11 | **1.44** |
+| True bouts cleanly recovered | 3 of 22 (14%) | **11 of 22 (50%)** |
+| Window accuracy | 0.780 | 0.778 — **−0.2 pp** |
+
+D6 therefore buys a 3.7× increase in bouts a reviewer can accept unedited, and removes six
+sevenths of the review workload, for two tenths of a percentage point of window accuracy. That
+price is stated because the claim is only falsifiable if it is: on one of the three subjects
+(Sub10) smoothing cost 11 pp of window accuracy while still improving bout structure, and the
+per-subject table records it rather than hiding it inside the pooled figure.
+
+**Bout purity is deliberately not among these metrics.** With one bout per run of equal labels it
+reduces arithmetically to window accuracy, so it would restate the thesis's own measurement while
+appearing to add something.
 
 *Won't:* streaming inference, batch multi-file upload, gait-cycle or heel-strike detection,
 force-plate or video sync, an HMM with a learned transition matrix (it would encode the
@@ -520,7 +541,7 @@ test log. Verification levels:
 | Unit | Feature extraction against thesis reference vectors; windowing; calibration sufficiency; CCI including the null case; smoothing and dwell |
 | Integration | Signed URL → object → features → normalise → infer → smooth → bouts → approve → metrics |
 | Model equivalence | ONNX vs native below 1e-4, both models, in the serving runtime |
-| Smoothing effect | Bout coherence with and without D6 — a number the thesis does not have |
+| Smoothing effect | Bout coherence with and without D6 — a number the thesis does not have. **Measured:** 130 → 17 bouts, 6.11 → 1.44 fragments per true bout, 14% → 50% cleanly recovered, at −0.2 pp window accuracy (§4.2 D) |
 | Rules | Cross-clinician denial; unauthenticated denial; audit update and delete denial |
 | System | The full journey against the live deployment |
 | Security | Authorisation bypass, oversized upload, malformed CSV, injection |
