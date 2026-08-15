@@ -44,7 +44,12 @@ jobs:
     # real, locally-started Firestore emulator (not a mock) -- see firestore/rules.test.mjs.
     # Without this job the rules-unit-tests only ever prove anything on whichever machine last
     # ran them by hand; this makes that guarantee durable across every push.
-    name: Firestore rules
+    #
+    # The same emulator then serves the Python integration suite (SRS 7, "Integration"), which
+    # exercises FirestoreDocumentStore -- the one module that actually talks to the database, and
+    # the one every other backend test replaces with a fake. Both suites share a single emulator
+    # start because standing it up twice would double the slowest part of the job for nothing.
+    name: Firestore rules and integration
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -62,15 +67,35 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
       - name: Install
-        working-directory: firestore
-        run: npm ci
+        run: |
+          npm --prefix firestore ci
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 
       - name: Rules tests against the real emulator
         run: >-
           npx --prefix firestore firebase emulators:exec
           --project myolens-rules-test --only firestore
           "npm --prefix firestore test"
+
+      - name: Integration tests against the real emulator
+        # FIRESTORE_EMULATOR_HOST is exported by emulators:exec; the suite skips without it, so
+        # a missing variable would silently turn this step into a no-op. -p no:randomly keeps the
+        # journey tests in written order, and the explicit path means a skip is visible as a skip
+        # rather than as an empty selection.
+        run: >-
+          npx --prefix firestore firebase emulators:exec
+          --project myolens-integration --only firestore
+          "cd backend && python -m pytest tests/test_firestore_integration.py -v"
 
   backend:
     name: Backend tests

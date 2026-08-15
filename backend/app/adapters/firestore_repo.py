@@ -42,9 +42,16 @@ class Collections:
     MODELS: str = "models"
     AUDIT: str = "audit"
 
-    CALIBRATIONS: str = "calibrations"  # subcollection of a participant
-    BOUTS: str = "bouts"  # subcollection of a session
-    METRICS: str = "metrics"  # single document under a session
+    # These three are top-level collections, keyed by a parent id held in a field
+    # (participantId / sessionId), not Firestore subcollections. They were described as
+    # subcollections here, which was wrong in a way that mattered: firestore.rules matches
+    # /bouts/{boutId}, so a reader trusting the comment would have looked for the rule in the
+    # wrong place -- or, worse, "corrected" the code to match the comment and silently moved the
+    # data out from under the rule that protects it. test_firestore_integration.py asserts the
+    # application writes where the rules look.
+    CALIBRATIONS: str = "calibrations"
+    BOUTS: str = "bouts"
+    METRICS: str = "metrics"
 
 
 COLLECTIONS = Collections()

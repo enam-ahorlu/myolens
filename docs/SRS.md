@@ -551,12 +551,12 @@ test log. Verification levels:
 | Level | Coverage |
 |---|---|
 | Unit | Feature extraction against thesis reference vectors; windowing; calibration sufficiency; CCI including the null case; smoothing and dwell |
-| Integration | Signed URL → object → features → normalise → infer → smooth → bouts → approve → metrics |
+| Integration | Signed URL → object → features → normalise → infer → smooth → bouts → approve → metrics, through the **real Firestore adapter against a locally-started emulator** — not the in-memory fake the unit suite substitutes. Also pins `firestore.rules` to reality by reading back the collections the application actually writes |
 | Model equivalence | ONNX vs native below 1e-4, both models, in the serving runtime |
 | Smoothing effect | Bout coherence with and without D6 — a number the thesis does not have. **Measured:** 130 → 17 bouts, 6.11 → 1.44 fragments per true bout, 14% → 50% cleanly recovered, at −0.2 pp window accuracy (§4.2 D) |
 | Rules | Cross-clinician denial; unauthenticated denial; audit update and delete denial |
 | System | The full journey against the live deployment |
-| Security | Authorisation bypass, oversized upload, malformed CSV, injection |
+| Security | Authorisation bypass, oversized upload, malformed CSV, injection — log forging, identifiers in logs, document-path injection, report markup, and stored-payload fidelity |
 | Performance | Session processing time against the 30 s budget |
 
 ---

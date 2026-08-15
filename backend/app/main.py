@@ -7,6 +7,7 @@ reaches a client as a stack trace.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 
@@ -19,12 +20,39 @@ from app.config import get_settings
 from app.errors import ErrorCode, ErrorEnvelope, MyoLensError
 from app.routers import admin, calibrations, health, models, participants, sessions, uploads
 
-# Structured, and deliberately free of participant identifiers. A pseudonymous code in a log line
-# is still a re-identification surface once combined with a session time.
-logging.basicConfig(
-    level=logging.INFO,
-    format='{"level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
-)
+
+class JsonFormatter(logging.Formatter):
+    """Serialise the record with ``json.dumps`` rather than interpolating into a JSON-shaped
+    template string.
+
+    The template form was forgeable. It interpolated ``%(message)s`` straight between two literal
+    quotes, and the refusal handler put the request path into that message -- so a caller who
+    asked for a path containing a quote and a newline could close the string and inject their own
+    keys:
+
+        {"level":"INFO","message":"refusal code=not_found path=/v1/participants/a"b"forged":"yes"}
+
+    That is not merely malformed output. Structured logs are read by machines, and a caller able
+    to synthesise fields can plant a plausible entry or bury a real one. Escaping the path at the
+    call site would fix this instance and leave the next one open; encoding at the formatter
+    fixes the class, because every value now passes through a serialiser that cannot emit an
+    unescaped quote or newline.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(JsonFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_handler], force=True)
 logger = logging.getLogger("myolens")
 
 
@@ -62,7 +90,15 @@ def create_app() -> FastAPI:
     @app.exception_handler(MyoLensError)
     async def handle_refusal(request: Request, exc: MyoLensError) -> JSONResponse:
         request_id = getattr(request.state, "request_id", None)
-        logger.info("refusal code=%s path=%s", exc.code.value, request.url.path)
+        # The *route template*, never the concrete path. SRS 5.1: "Logs carry no participant
+        # identifier -- a pseudonymous code plus a session time is still a re-identification
+        # surface." A concrete path is exactly that: /v1/participants/<id> puts the id in the
+        # log, and /v1/sessions/<id>/segment puts a session id there. The template keeps every
+        # bit of the diagnostic value (which endpoint refused, and why) and carries no identifier.
+        route = request.scope.get("route")
+        logger.info(
+            "refusal code=%s route=%s", exc.code.value, getattr(route, "path", "<unmatched>")
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content=exc.envelope(request_id).model_dump(mode="json"),
