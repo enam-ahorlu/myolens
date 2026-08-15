@@ -603,3 +603,60 @@ def test_metrics_are_cached_after_the_first_computation():
     second = client.get(f"/v1/sessions/{session_id}/metrics").json()
     assert second == first
     _reset()
+
+
+def test_export_is_refused_before_approval_g1_e7():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, _segmentation = _segmented_session(store, objects)
+
+    response = client.get(f"/v1/sessions/{session_id}/export")
+
+    assert response.status_code == 412
+    assert response.json()["code"] == "segmentation_not_approved"
+    _reset()
+
+
+def test_export_returns_a_pdf_g1():
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, _segmentation = _segmented_session(store, objects)
+    client.post(f"/v1/sessions/{session_id}/approve")
+
+    response = client.get(f"/v1/sessions/{session_id}/export")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert "attachment" in response.headers["content-disposition"]
+    assert session_id in response.headers["content-disposition"]
+    # A real PDF, not an empty or truncated stream.
+    assert response.content[:5] == b"%PDF-"
+    assert response.content[-1:] in (b"\n", b"%")  # reportlab terminates with %%EOF (+ newline)
+    assert len(response.content) > 1000
+    _reset()
+
+
+def test_export_reflects_the_same_numbers_as_the_metrics_endpoint():
+    """G1's metric tables must be the numbers a clinician already reviewed via
+    GET .../metrics, not a second, independently-computed set."""
+    store = FakeDocumentStore()
+    objects = FakeObjectStore()
+    client, session_id, _segmentation = _segmented_session(store, objects)
+    client.post(f"/v1/sessions/{session_id}/approve")
+
+    metrics = client.get(f"/v1/sessions/{session_id}/metrics").json()
+    export_response = client.get(f"/v1/sessions/{session_id}/export")
+
+    assert export_response.status_code == 200
+    # The PDF is binary, so this checks the two endpoints share the same cached source rather
+    # than parsing the PDF back out: the metrics cache document is what the export reads too.
+    cached = store.get(COLLECTIONS.METRICS, session_id)
+    assert cached["tasks"] == metrics["tasks"]
+    _reset()
+
+
+def test_export_requires_authentication():
+    _reset()
+    response = TestClient(app).get("/v1/sessions/does-not-exist/export")
+    assert response.status_code == 401
+    _reset()

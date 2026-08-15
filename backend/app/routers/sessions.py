@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import numpy as np
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 from app.adapters.firestore_repo import COLLECTIONS, DocumentStore, get_document_store
@@ -55,6 +55,7 @@ from app.errors import (
     SegmentationNotApproved,
     SegmentationNotReady,
 )
+from app.routers.session_report import render_session_report_pdf
 from app.serving.onnx_predictor import get_ensemble
 
 router = APIRouter(tags=["sessions"])
@@ -533,22 +534,21 @@ def approve_session(session_id: str, user: UserDep, store: StoreDep) -> SessionO
     return SessionOut.from_domain(updated)
 
 
-@router.get(
-    "/v1/sessions/{session_id}/metrics",
-    response_model=SessionMetricsOut,
-    summary="Compute the §3.3 metric set on an approved segmentation (F1)",
-)
-def get_session_metrics(
-    session_id: str, user: UserDep, store: StoreDep, objects: ObjectStoreDep
+def _load_or_compute_metrics(
+    session: Session, store: DocumentStore, objects: ObjectStore
 ) -> SessionMetricsOut:
-    session = _load_session(store, user, session_id)
+    """F1's §3.3 metric set for an approved session -- shared by the metrics endpoint and the
+    PDF export endpoint (G1) so both read exactly the same numbers, computed exactly once.
+
+    Raises :class:`SegmentationNotApproved` (412) itself rather than leaving the gate to each
+    caller -- FR-08/E7/F1 say no metric before approval, and a route that forgot to check first
+    would otherwise read a stale or nonexistent cache entry as "nothing to report" instead of
+    "not allowed yet".
+    """
     bout_docs = store.query(COLLECTIONS.BOUTS, sessionId=session.id)
     bouts = sorted((Bout.from_document(d) for d in bout_docs), key=lambda b: b.start_window)
     flagged_count = sum(1 for b in bouts if b.flagged)
 
-    # FR-08/E7/F1: no metric before approval, full stop -- not even a stale one from before the
-    # last correction. The session's own status is the single source of truth for this gate,
-    # not (say) the presence of a cached metrics document.
     if session.status != SessionStatus.APPROVED:
         raise SegmentationNotApproved(session.id, flagged_count)
 
@@ -615,3 +615,50 @@ def get_session_metrics(
     )
     store.set(COLLECTIONS.METRICS, session.id, result.model_dump())
     return result
+
+
+@router.get(
+    "/v1/sessions/{session_id}/metrics",
+    response_model=SessionMetricsOut,
+    summary="Compute the §3.3 metric set on an approved segmentation (F1)",
+)
+def get_session_metrics(
+    session_id: str, user: UserDep, store: StoreDep, objects: ObjectStoreDep
+) -> SessionMetricsOut:
+    session = _load_session(store, user, session_id)
+    return _load_or_compute_metrics(session, store, objects)
+
+
+@router.get(
+    "/v1/sessions/{session_id}/export",
+    summary="Export a PDF report of the approved segmentation and its metrics (G1)",
+)
+def export_session(
+    session_id: str, user: UserDep, store: StoreDep, objects: ObjectStoreDep
+) -> Response:
+    session = _load_session(store, user, session_id)
+    participant = load_owned_participant(store, user, session.participant_id)
+    # Same gate, same numbers as GET .../metrics -- this raises SegmentationNotApproved itself
+    # if the session isn't approved yet, so the export can never show metrics the clinician
+    # hasn't signed off on either.
+    metrics = _load_or_compute_metrics(session, store, objects)
+
+    bout_docs = store.query(COLLECTIONS.BOUTS, sessionId=session.id)
+    bouts = sorted((Bout.from_document(d) for d in bout_docs), key=lambda b: b.start_window)
+    calibration = _load_calibration_version(
+        store, session.participant_id, session.calibration_version
+    )
+
+    pdf_bytes = render_session_report_pdf(
+        participant_code=participant.code,
+        session=session,
+        calibration=calibration,
+        bouts=bouts,
+        metrics=metrics,
+    )
+    filename = f"myolens-session-{session.id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
